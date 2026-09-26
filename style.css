@@ -1,0 +1,384 @@
+:root {
+  --bg: #0b0d11;
+  --panel: #151a22;
+  --panel-2: #1d2430;
+  --line: #2a3340;
+  --text: #e8edf3;
+  --muted: #8b97a8;
+  --home: #ffb020;
+  --away: #37c6ff;
+  --clock: #ff5a3c;
+  --go: #3ddc84;
+  --radius: 14px;
+  --digits: ui-monospace, "SF Mono", Menlo, Consolas, "Roboto Mono", monospace;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  min-height: 44px;
+  padding: 0 14px;
+  cursor: pointer;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--away);
+  outline-offset: 2px;
+}
+
+/* Barra in alto */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 16px 0;
+}
+
+.topbar h1 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Griglia del tabellone */
+
+.board {
+  display: grid;
+  grid-template-columns: 1fr minmax(260px, auto) 1fr;
+  grid-template-areas:
+    "home center away"
+    "log  log    log";
+  gap: 16px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.team,
+.center,
+.log-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.home {
+  grid-area: home;
+  --accent: var(--home);
+}
+
+.away {
+  grid-area: away;
+  --accent: var(--away);
+}
+
+.center {
+  grid-area: center;
+}
+
+.log-panel {
+  grid-area: log;
+}
+
+/* Squadre */
+
+.team {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 4px solid var(--accent);
+}
+
+.team-name {
+  width: 100%;
+  padding: 4px 6px;
+  background: transparent;
+  border: 1px dashed transparent;
+  border-radius: 8px;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: clamp(18px, 3vw, 26px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.team-name:hover {
+  border-color: var(--line);
+}
+
+.score {
+  display: block;
+  font-family: var(--digits);
+  font-size: clamp(64px, 12vw, 150px);
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 24px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.btn-row {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 8px;
+}
+
+.team .btn-row button {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.stat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.stat-label {
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stat-value {
+  font-family: var(--digits);
+  font-size: 22px;
+}
+
+.stat button {
+  margin-left: auto;
+}
+
+.bonus {
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: var(--clock);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.bonus[hidden] {
+  display: none;
+}
+
+.dots {
+  font-size: 18px;
+  letter-spacing: 2px;
+  color: var(--accent);
+}
+
+/* Cronometro e periodo */
+
+.center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.period-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.period {
+  font-family: var(--digits);
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.clock {
+  padding: 8px 0;
+  font-family: var(--digits);
+  font-size: clamp(56px, 9vw, 104px);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--clock);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 24px color-mix(in srgb, var(--clock) 40%, transparent);
+}
+
+.clock.last-minute {
+  color: #ff2d2d;
+}
+
+.clock.expired {
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+.primary {
+  min-height: 52px;
+  border-color: transparent;
+  background: var(--go);
+  color: #06210f;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.primary.running {
+  background: var(--home);
+  color: #2a1a00;
+}
+
+/* Cronaca */
+
+.log-panel h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.log {
+  max-height: 220px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  font-size: 15px;
+}
+
+.log:empty::before {
+  content: "Nessuna azione registrata.";
+  color: var(--muted);
+}
+
+.log li {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.log .when,
+.log .result {
+  font-family: var(--digits);
+}
+
+.log .when {
+  color: var(--muted);
+}
+
+.hint {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Telefono: cronometro sopra, squadre affiancate, cronaca sotto */
+
+@media (max-width: 760px) {
+  .board {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "center center"
+      "home   away"
+      "log    log";
+    gap: 12px;
+  }
+
+  .team,
+  .center,
+  .log-panel {
+    padding: 12px;
+  }
+
+  .team .btn-row {
+    gap: 6px;
+  }
+
+  .team-name {
+    padding: 4px 2px;
+    letter-spacing: 0;
+  }
+
+  .btn-row button {
+    padding: 0;
+  }
+
+  .team .btn-row button {
+    font-size: 18px;
+  }
+
+  .stat button {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .hint {
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .topbar h1 {
+    display: none;
+  }
+}

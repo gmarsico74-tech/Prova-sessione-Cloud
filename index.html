@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tabellone Basket</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Tabellone</h1>
+    <div class="topbar-actions">
+      <button data-action="undo" title="Ctrl+Z">↶ Annulla</button>
+      <button data-action="new-game">Nuova partita</button>
+    </div>
+  </header>
+
+  <main class="board">
+    <section class="team home" data-team="home">
+      <input class="team-name" maxlength="14" spellcheck="false" aria-label="Nome squadra di casa">
+      <output class="score" data-role="score">0</output>
+      <div class="btn-row">
+        <button data-action="score" data-pts="1">+1</button>
+        <button data-action="score" data-pts="2">+2</button>
+        <button data-action="score" data-pts="3">+3</button>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Falli</span>
+        <strong class="stat-value" data-role="fouls">0</strong>
+        <span class="bonus" data-role="bonus" hidden>BONUS</span>
+        <button data-action="foul">+ Fallo</button>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Timeout</span>
+        <span class="dots" data-role="timeouts"></span>
+        <button data-action="timeout">Timeout</button>
+      </div>
+    </section>
+
+    <section class="center">
+      <div class="period-row">
+        <button data-action="prev-period" aria-label="Periodo precedente">◀</button>
+        <div id="period" class="period">Q1</div>
+        <button data-action="next-period" aria-label="Periodo successivo">▶</button>
+      </div>
+      <div id="clock" class="clock" role="timer">10:00</div>
+      <button data-action="toggle-clock" class="primary" title="Barra spaziatrice">▶ Avvia</button>
+      <div class="btn-row">
+        <button data-action="adjust" data-ms="-1000" aria-label="Togli un secondo">−1s</button>
+        <button data-action="reset-clock" title="Riporta il cronometro all'inizio del periodo">Reset</button>
+        <button data-action="adjust" data-ms="1000" aria-label="Aggiungi un secondo">+1s</button>
+      </div>
+    </section>
+
+    <section class="team away" data-team="away">
+      <input class="team-name" maxlength="14" spellcheck="false" aria-label="Nome squadra ospite">
+      <output class="score" data-role="score">0</output>
+      <div class="btn-row">
+        <button data-action="score" data-pts="1">+1</button>
+        <button data-action="score" data-pts="2">+2</button>
+        <button data-action="score" data-pts="3">+3</button>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Falli</span>
+        <strong class="stat-value" data-role="fouls">0</strong>
+        <span class="bonus" data-role="bonus" hidden>BONUS</span>
+        <button data-action="foul">+ Fallo</button>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Timeout</span>
+        <span class="dots" data-role="timeouts"></span>
+        <button data-action="timeout">Timeout</button>
+      </div>
+    </section>
+
+    <section class="log-panel">
+      <h2>Cronaca</h2>
+      <ol id="log" class="log"></ol>
+      <p class="hint">Barra spaziatrice: avvia e ferma il cronometro · Ctrl+Z: annulla l'ultima azione</p>
+    </section>
+  </main>
+
+  <script src="game.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
