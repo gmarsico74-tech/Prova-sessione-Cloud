@@ -290,7 +290,7 @@ input:focus-visible {
 .shot {
   min-width: 3ch;
   font-family: var(--digits);
-  font-size: clamp(36px, 5vw, 52px);
+  font-size: clamp(52px, 8vw, 80px);
   font-weight: 700;
   line-height: 1;
   color: var(--shot);
