@@ -14,6 +14,8 @@ Una pagina sola, senza installare nulla e senza connessione.
 - **Punti** con +1, +2, +3 per ciascuna squadra; i nomi si cambiano toccandoli.
 - **Cronometro** di 10 minuti per quarto e 5 per ogni tempo supplementare, con correzione di un secondo alla volta.
   Nell'ultimo minuto mostra secondi e decimi; a zero lampeggia e suona la sirena.
+- **24 secondi** che scorrono e si fermano insieme al cronometro, con i pulsanti 24 e 14 per riportarli indietro.
+  Allo scadere suona la sirena e il gioco si ferma; alla ripartenza tornano a 24.
 - **Falli di squadra** per periodo, con l'avviso BONUS dal quinto fallo.
 - **Timeout** rimasti a ciascuna squadra.
 - **Cronaca** di tutte le azioni con periodo, tempo e punteggio.
@@ -24,6 +26,8 @@ Una pagina sola, senza installare nulla e senza connessione.
 
 - I falli di squadra ripartono da zero a ogni quarto; quelli dei supplementari si sommano al quarto quarto.
 - Timeout: 2 nel primo tempo, 3 nel secondo, 1 per ogni supplementare; quelli non usati si perdono.
+- I 24 secondi si spengono quando al periodo restano meno secondi di quelli dell'azione.
+  Il 14 serve dopo un rimbalzo offensivo o un fallo nella metà campo d'attacco.
 
 ## File
 
