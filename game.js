@@ -30,6 +30,7 @@
       names: { ...names },
       settings: { playerMode: false, friendly: false, ...setup.settings },
       rosters: { home: [...(setup.rosters?.home ?? [])], away: [...(setup.rosters?.away ?? [])] },
+      playerNames: { home: { ...setup.playerNames?.home }, away: { ...setup.playerNames?.away } },
       period: 1,
       clock: freshClock(1),
       events: [],
@@ -237,8 +238,8 @@
     return state.settings.friendly ? MAX_PLAYERS_FRIENDLY : MAX_PLAYERS;
   }
 
-  // Aggiunge un numero di maglia; se non si può, restituisce il motivo da mostrare.
-  function addPlayer(state, team, value) {
+  // Aggiunge un numero di maglia, con il nome se c'è; se non si può, restituisce il motivo da mostrare.
+  function addPlayer(state, team, value, name = '') {
     const text = String(value).trim();
     if (!/^\d{1,2}$/.test(text)) return 'Il numero di maglia va da 0 a 99.';
     const number = Number(text);
@@ -251,7 +252,20 @@
     }
     roster.push(number);
     roster.sort((a, b) => a - b);
+    setPlayerName(state, team, number, name);
     return null;
+  }
+
+  function setPlayerName(state, team, number, name) {
+    const clean = String(name).trim().slice(0, 20);
+    if (clean) state.playerNames[team][number] = clean;
+    else delete state.playerNames[team][number];
+  }
+
+  // Come il giocatore compare in cronaca: «#7 Rossi», o solo «#7» se non ha nome.
+  function playerLabel(state, team, number) {
+    const name = state.playerNames[team][number];
+    return name ? `#${number} ${name}` : `#${number}`;
   }
 
   // Si toglie solo un giocatore rimasto a zero punti e zero falli, così i totali restano giusti.
@@ -262,7 +276,50 @@
   function removePlayer(state, team, player) {
     if (!canRemovePlayer(state.events, team, player)) return false;
     state.rosters[team] = state.rosters[team].filter((n) => n !== player);
+    delete state.playerNames[team][player];
     return true;
+  }
+
+  // Le squadre salvate: nome della squadra e giocatori con numero e nome, pronti da richiamare.
+  function teamSnapshot(state, team) {
+    return {
+      name: state.names[team],
+      players: state.rosters[team].map((number) => ({ number, name: state.playerNames[team][number] ?? '' })),
+    };
+  }
+
+  function sameName(a, b) {
+    return a.toLocaleLowerCase('it') === b.toLocaleLowerCase('it');
+  }
+
+  // Una squadra salvata con lo stesso nome di un'altra la sostituisce; l'elenco resta in ordine alfabetico.
+  function storeTeam(library, snapshot) {
+    return [...library.filter((t) => !sameName(t.name, snapshot.name)), snapshot].sort((a, b) =>
+      a.name.localeCompare(b.name, 'it')
+    );
+  }
+
+  function hasStoredTeam(library, name) {
+    return library.some((t) => sameName(t.name, name));
+  }
+
+  function deleteStoredTeam(library, name) {
+    return library.filter((t) => t.name !== name);
+  }
+
+  // Richiama una squadra salvata al posto di quella attuale, ma solo finché i suoi giocatori
+  // non hanno punti né falli: a partita iniziata cambierebbe i totali.
+  function loadTeam(state, team, saved) {
+    if (!state.rosters[team].every((n) => canRemovePlayer(state.events, team, n))) {
+      return 'I giocatori di questa squadra hanno già punti o falli: richiamala prima di iniziare o dopo «Nuova partita».';
+    }
+    if (saved.players.length > maxPlayers(state)) {
+      return `«${saved.name}» ha ${saved.players.length} giocatori: spunta prima «Amichevole».`;
+    }
+    state.names[team] = saved.name;
+    state.rosters[team] = saved.players.map((p) => p.number).sort((a, b) => a - b);
+    state.playerNames[team] = Object.fromEntries(saved.players.filter((p) => p.name).map((p) => [p.number, p.name]));
+    return null;
   }
 
   // Si esce dall'amichevole solo se nessuna squadra ha più giocatori di quelli ammessi in campionato.
@@ -328,9 +385,16 @@
     undo,
     maxPlayers,
     addPlayer,
+    setPlayerName,
+    playerLabel,
     canRemovePlayer,
     removePlayer,
     setFriendly,
+    teamSnapshot,
+    storeTeam,
+    hasStoredTeam,
+    deleteStoredTeam,
+    loadTeam,
     formatClock,
     formatShot,
   };

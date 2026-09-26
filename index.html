@@ -110,22 +110,32 @@
         <div class="rosters">
           <div class="roster" data-roster="home">
             <h3><span data-role="roster-name"></span> <span class="roster-count" data-role="roster-count"></span></h3>
-            <ul class="chips" data-role="chips"></ul>
+            <ol class="roster-list" data-role="roster-list"></ol>
             <form class="add-player" novalidate>
-              <input type="number" min="0" max="99" step="1" inputmode="numeric" placeholder="N°" aria-label="Numero di maglia da aggiungere alla squadra di casa">
+              <input type="number" class="add-number" min="0" max="99" step="1" inputmode="numeric" placeholder="N°" aria-label="Numero di maglia da aggiungere alla squadra di casa">
+              <input type="text" class="add-name" maxlength="20" placeholder="Nome" aria-label="Nome del giocatore da aggiungere alla squadra di casa">
               <button type="submit">Aggiungi</button>
             </form>
             <p class="error" data-role="error" aria-live="polite"></p>
+            <button type="button" data-action="save-team" class="save-team">Salva squadra</button>
+            <p class="note" data-role="note" aria-live="polite"></p>
           </div>
           <div class="roster" data-roster="away">
             <h3><span data-role="roster-name"></span> <span class="roster-count" data-role="roster-count"></span></h3>
-            <ul class="chips" data-role="chips"></ul>
+            <ol class="roster-list" data-role="roster-list"></ol>
             <form class="add-player" novalidate>
-              <input type="number" min="0" max="99" step="1" inputmode="numeric" placeholder="N°" aria-label="Numero di maglia da aggiungere alla squadra ospite">
+              <input type="number" class="add-number" min="0" max="99" step="1" inputmode="numeric" placeholder="N°" aria-label="Numero di maglia da aggiungere alla squadra ospite">
+              <input type="text" class="add-name" maxlength="20" placeholder="Nome" aria-label="Nome del giocatore da aggiungere alla squadra ospite">
               <button type="submit">Aggiungi</button>
             </form>
             <p class="error" data-role="error" aria-live="polite"></p>
+            <button type="button" data-action="save-team" class="save-team">Salva squadra</button>
+            <p class="note" data-role="note" aria-live="polite"></p>
           </div>
+        </div>
+        <div class="library">
+          <h3>Squadre salvate</h3>
+          <ul id="library" class="library-list"></ul>
         </div>
       </div>
     </section>
