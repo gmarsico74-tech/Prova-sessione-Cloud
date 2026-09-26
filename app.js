@@ -8,6 +8,7 @@ const DEFAULT_NAMES = { home: 'PC52', away: 'OSPITI' };
 
 const $ = (selector, el = document) => el.querySelector(selector);
 const clockEl = $('#clock');
+const shotEl = $('#shot');
 
 let state = load();
 let audioCtx = null;
@@ -15,7 +16,10 @@ let audioCtx = null;
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && Array.isArray(saved.events) && saved.clock && saved.names) return saved;
+    if (saved && Array.isArray(saved.events) && saved.clock && saved.names) {
+      saved.clock.shotMs ??= Game.SHOT_MS; // partite salvate prima dei 24 secondi
+      return saved;
+    }
   } catch {
     // storage non disponibile o dati illeggibili: si riparte da una partita nuova
   }
@@ -69,11 +73,17 @@ function fitName(input) {
 }
 
 function renderClock() {
-  const ms = Game.remainingMs(state.clock, Date.now());
+  const now = Date.now();
+  const ms = Game.remainingMs(state.clock, now);
   const running = state.clock.running;
   clockEl.textContent = Game.formatClock(ms);
   clockEl.classList.toggle('last-minute', ms < 60000);
   clockEl.classList.toggle('expired', ms === 0);
+  const shotMs = Game.shotRemainingMs(state.clock, now);
+  const shotOff = Game.shotClockOff(state.clock, now);
+  shotEl.textContent = shotOff ? '—' : Game.formatShot(shotMs);
+  shotEl.classList.toggle('off', shotOff);
+  shotEl.classList.toggle('expired', !shotOff && shotMs === 0);
   const toggle = $('[data-action="toggle-clock"]');
   toggle.textContent = running ? '⏸ Pausa' : '▶ Avvia';
   toggle.classList.toggle('running', running);
@@ -128,7 +138,7 @@ function unlockAudio() {
   }
 }
 
-function buzzer() {
+function buzzer(seconds) {
   if (!audioCtx) return;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
@@ -137,14 +147,13 @@ function buzzer() {
   gain.gain.value = 0.15;
   osc.connect(gain).connect(audioCtx.destination);
   osc.start();
-  osc.stop(audioCtx.currentTime + 1.2);
+  osc.stop(audioCtx.currentTime + seconds);
 }
 
 function tick() {
-  const now = Date.now();
-  if (state.clock.running && Game.remainingMs(state.clock, now) === 0) {
-    Game.pauseClock(state.clock, now);
-    buzzer();
+  const expired = Game.checkExpiry(state.clock, Date.now());
+  if (expired) {
+    buzzer(expired === 'period' ? 1.2 : 0.6);
     update();
     return;
   }
@@ -174,6 +183,9 @@ document.addEventListener('click', (e) => {
       break;
     case 'adjust':
       Game.adjustClock(state, Number(btn.dataset.ms));
+      break;
+    case 'shot':
+      Game.resetShot(state.clock, now, Number(btn.dataset.ms));
       break;
     case 'reset-clock':
       Game.goToPeriod(state, state.period);

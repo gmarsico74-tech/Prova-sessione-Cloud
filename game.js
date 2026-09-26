@@ -5,6 +5,8 @@
 
   const QUARTER_MS = 10 * 60 * 1000;
   const OVERTIME_MS = 5 * 60 * 1000;
+  const SHOT_MS = 24 * 1000;
+  const SHOT_SHORT_MS = 14 * 1000; // dopo un rimbalzo offensivo o un fallo nella metà campo d'attacco
   const BONUS_FOULS = 5; // dal 5° fallo di squadra nel periodo si tirano i liberi
 
   function periodLength(period) {
@@ -15,11 +17,15 @@
     return period <= 4 ? `Q${period}` : `TS${period - 4}`;
   }
 
+  function freshClock(period) {
+    return { remainingMs: periodLength(period), shotMs: SHOT_MS, running: false, startedAt: 0 };
+  }
+
   function newGame(names) {
     return {
       names: { ...names },
       period: 1,
-      clock: { remainingMs: QUARTER_MS, running: false, startedAt: 0 },
+      clock: freshClock(1),
       events: [],
     };
   }
@@ -54,8 +60,21 @@
     return Math.max(0, clock.remainingMs - (now - clock.startedAt));
   }
 
+  // I 24 secondi scorrono e si fermano insieme al cronometro di gioco.
+  function shotRemainingMs(clock, now) {
+    if (!clock.running) return clock.shotMs;
+    return Math.max(0, clock.shotMs - (now - clock.startedAt));
+  }
+
+  // Se al periodo restano meno secondi di quelli dell'azione, i 24 secondi si spengono.
+  function shotClockOff(clock, now) {
+    return remainingMs(clock, now) < shotRemainingMs(clock, now);
+  }
+
+  // Ripartire dopo una violazione dei 24 secondi vuol dire nuovo possesso: si torna a 24.
   function startClock(clock, now) {
     if (clock.running || clock.remainingMs <= 0) return;
+    if (clock.shotMs <= 0) clock.shotMs = SHOT_MS;
     clock.running = true;
     clock.startedAt = now;
   }
@@ -63,7 +82,31 @@
   function pauseClock(clock, now) {
     if (!clock.running) return;
     clock.remainingMs = remainingMs(clock, now);
+    clock.shotMs = shotRemainingMs(clock, now);
     clock.running = false;
+  }
+
+  function resetShot(clock, now, ms) {
+    if (clock.running) {
+      clock.remainingMs = remainingMs(clock, now);
+      clock.startedAt = now;
+    }
+    clock.shotMs = ms;
+  }
+
+  // Ferma tutto quando scade il periodo o l'azione e dice quale dei due è scaduto.
+  // I 24 secondi fermano il gioco nell'istante esatto della scadenza, non al controllo successivo.
+  function checkExpiry(clock, now) {
+    if (!clock.running) return null;
+    if (remainingMs(clock, now) === 0) {
+      pauseClock(clock, now);
+      return 'period';
+    }
+    if (!shotClockOff(clock, now) && shotRemainingMs(clock, now) === 0) {
+      pauseClock(clock, clock.startedAt + clock.shotMs);
+      return 'shot';
+    }
+    return null;
   }
 
   function adjustClock(state, deltaMs) {
@@ -72,11 +115,11 @@
     state.clock.remainingMs = Math.min(max, Math.max(0, state.clock.remainingMs + deltaMs));
   }
 
-  // Cambiare periodo (o ripartire da capo in quello attuale) ferma e riempie il cronometro.
+  // Cambiare periodo (o ripartire da capo in quello attuale) ferma e riempie i cronometri.
   function goToPeriod(state, period) {
     if (period < 1) return;
     state.period = period;
-    state.clock = { remainingMs: periodLength(period), running: false, startedAt: 0 };
+    state.clock = freshClock(period);
   }
 
   function record(state, now, event) {
@@ -103,19 +146,28 @@
     state.events.pop();
   }
 
+  function tenths(ms) {
+    const t = Math.floor(ms / 100);
+    return `${Math.floor(t / 10)}.${t % 10}`;
+  }
+
   // Sopra il minuto m:ss; nell'ultimo minuto secondi e decimi, come sui tabelloni FIBA.
   function formatClock(ms) {
-    if (ms < 60000) {
-      const tenths = Math.floor(ms / 100);
-      return `${Math.floor(tenths / 10)}.${tenths % 10}`;
-    }
+    if (ms < 60000) return tenths(ms);
     const seconds = Math.floor(ms / 1000);
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  }
+
+  // I 24 secondi mostrano i decimi solo negli ultimi 5 secondi.
+  function formatShot(ms) {
+    return ms < 5000 ? tenths(ms) : String(Math.floor(ms / 1000));
   }
 
   const Game = {
     QUARTER_MS,
     OVERTIME_MS,
+    SHOT_MS,
+    SHOT_SHORT_MS,
     BONUS_FOULS,
     periodLength,
     periodLabel,
@@ -125,8 +177,12 @@
     timeoutWindow,
     timeoutsLeft,
     remainingMs,
+    shotRemainingMs,
+    shotClockOff,
     startClock,
     pauseClock,
+    resetShot,
+    checkExpiry,
     adjustClock,
     goToPeriod,
     addPoints,
@@ -134,6 +190,7 @@
     takeTimeout,
     undo,
     formatClock,
+    formatShot,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = Game;
