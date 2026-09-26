@@ -379,3 +379,45 @@ test('una nuova partita tiene anche i nomi dei giocatori, senza condividerli', (
   next.playerNames.home[7] = 'Verdi';
   assert.equal(state.playerNames.home[7], 'Rossi');
 });
+
+const LIBRARY = [
+  { name: 'PC52 U19', players: [{ number: 4, name: 'Rossi' }, { number: 7, name: '' }, { number: 23, name: 'Nicolò D\'Amico' }] },
+  { name: 'Virtus 🏀', players: [{ number: 0, name: '' }] },
+];
+
+test('il link delle squadre porta nomi, numeri e nomi dei giocatori, accenti compresi', () => {
+  const text = Game.encodeLibrary(LIBRARY);
+  assert.match(text, /^1\.[A-Za-z0-9_-]+$/, 'solo caratteri sicuri in un link');
+  assert.deepEqual(Game.decodeLibrary(text), LIBRARY);
+});
+
+test('un link rovinato o non del tabellone viene rifiutato', () => {
+  const good = Game.encodeLibrary(LIBRARY);
+  const pack = (value) => `1.${Buffer.from(JSON.stringify(value)).toString('base64url')}`;
+  for (const bad of [
+    '',
+    'ciao',
+    '2' + good.slice(1),
+    good.slice(0, 20),
+    pack([]),
+    pack({ name: 'x' }),
+    pack([['', [[4]]]]),
+    pack([['A', [[100]]]]),
+    pack([['A', [[4], [4]]]]),
+    pack([['A', [[1.5]]]]),
+    pack([['A', Array.from({ length: 17 }, (_, i) => [i])]]),
+    pack([['A', ['4']]]),
+  ]) {
+    assert.equal(Game.decodeLibrary(bad), null, bad);
+  }
+});
+
+test('le squadre del link si aggiungono a quelle salvate e sostituiscono quelle con lo stesso nome', () => {
+  const mine = [
+    { name: 'pc52 u19', players: [{ number: 99, name: 'Vecchio' }] },
+    { name: 'Amici', players: [] },
+  ];
+  const merged = Game.mergeLibrary(mine, LIBRARY);
+  assert.deepEqual(merged.map((t) => t.name), ['Amici', 'PC52 U19', 'Virtus 🏀']);
+  assert.equal(merged[1].players.length, 3);
+});

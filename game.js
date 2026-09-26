@@ -307,6 +307,53 @@
     return library.filter((t) => t.name !== name);
   }
 
+  function mergeLibrary(library, incoming) {
+    return incoming.reduce(storeTeam, library);
+  }
+
+  // Le squadre salvate viaggiano da un dispositivo all'altro dentro un link: testo compatto in base64,
+  // senza i caratteri che un link o un messaggio potrebbero rovinare.
+  const SHARE_VERSION = '1';
+
+  function encodeLibrary(library) {
+    const compact = library.map((t) => [t.name, t.players.map((p) => (p.name ? [p.number, p.name] : [p.number]))]);
+    let binary = '';
+    for (const byte of new TextEncoder().encode(JSON.stringify(compact))) binary += String.fromCharCode(byte);
+    const base64 = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return `${SHARE_VERSION}.${base64}`;
+  }
+
+  // Le squadre contenute nel link, oppure null se il link è rovinato o non viene dal tabellone.
+  function decodeLibrary(text) {
+    try {
+      const [version, data] = String(text).split('.');
+      if (version !== SHARE_VERSION || !data) return null;
+      const binary = atob(data.replace(/-/g, '+').replace(/_/g, '/'));
+      const compact = JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0))));
+      if (!Array.isArray(compact) || compact.length === 0) return null;
+      const teams = compact.map(decodeTeam);
+      return teams.every(Boolean) ? teams : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function decodeTeam(entry) {
+    if (!Array.isArray(entry) || typeof entry[0] !== 'string' || !Array.isArray(entry[1])) return null;
+    const name = entry[0].trim().slice(0, 14);
+    const players = entry[1].map(([number, playerName = '']) => ({
+      number,
+      name: String(playerName).trim().slice(0, 20),
+    }));
+    const numbers = players.map((p) => p.number);
+    const valid =
+      name !== '' &&
+      players.length <= MAX_PLAYERS_FRIENDLY &&
+      numbers.every((n) => Number.isInteger(n) && n >= 0 && n <= 99) &&
+      new Set(numbers).size === numbers.length;
+    return valid ? { name, players } : null;
+  }
+
   // Richiama una squadra salvata al posto di quella attuale, ma solo finché i suoi giocatori
   // non hanno punti né falli: a partita iniziata cambierebbe i totali.
   function loadTeam(state, team, saved) {
@@ -394,6 +441,9 @@
     storeTeam,
     hasStoredTeam,
     deleteStoredTeam,
+    mergeLibrary,
+    encodeLibrary,
+    decodeLibrary,
     loadTeam,
     formatClock,
     formatShot,

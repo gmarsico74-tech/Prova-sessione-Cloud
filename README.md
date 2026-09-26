@@ -32,7 +32,10 @@ Una pagina sola, senza installare nulla e senza connessione.
   Spenta l'opzione, il tabellone torna come prima, con gli stessi punti.
 - **Squadre salvate**: in Impostazioni, «Salva squadra» conserva nome della squadra, numeri e nomi dei giocatori.
   Nell'elenco «Squadre salvate» una squadra si richiama in casa o come ospite con un tocco, finché i giocatori
-  in campo non hanno ancora punti o falli. Le squadre restano salvate nel browser del dispositivo su cui le salvi.
+  in campo non hanno ancora punti o falli. Le squadre restano salvate nel browser del dispositivo su cui le salvi;
+  per portarle su un altro, «Invia squadre» crea un link con tutte le squadre salvate (numeri e nomi compresi):
+  aperto sull'altro dispositivo, il tabellone chiede conferma e le aggiunge, sostituendo quelle con lo stesso nome.
+  Dalla pagina aperta come file il link punta comunque al sito online.
 - La partita **resta salvata** nel browser: ricaricando la pagina si riprende da dove si era.
 - **Schermo intero** con il pulsante in alto a destra, comodo su un tablet a bordo campo; si esce con lo stesso
   pulsante o con Esc. Sull'iPhone il browser non lo permette e il pulsante non compare.
