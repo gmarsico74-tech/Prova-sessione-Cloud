@@ -421,3 +421,47 @@ test('le squadre del link si aggiungono a quelle salvate e sostituiscono quelle 
   assert.deepEqual(merged.map((t) => t.name), ['Amici', 'PC52 U19', 'Virtus 🏀']);
   assert.equal(merged[1].players.length, 3);
 });
+
+test('salva squadra: nuova, aggiornamento della squadra richiamata, rinomina o copia, sostituzione', () => {
+  const state = Game.newGame({ home: 'PC52 U19', away: 'Virtus' });
+  Game.addPlayer(state, 'home', '4', 'Rossi');
+  let library = [];
+  assert.equal(Game.saveKind(library, state, 'home'), 'new');
+  library = Game.saveTeam(library, state, 'home');
+  assert.equal(state.origins.home, 'PC52 U19');
+
+  // richiamata e cambiata senza toccare il nome: si aggiorna
+  Game.addPlayer(state, 'home', '9', 'Bianchi');
+  assert.equal(Game.saveKind(library, state, 'home'), 'update');
+  library = Game.saveTeam(library, state, 'home');
+  assert.equal(library.length, 1);
+  assert.equal(library[0].players.length, 2);
+
+  // nome cambiato: rinomina (la vecchia sparisce) ...
+  state.names.home = 'PC52 Under 19';
+  assert.equal(Game.saveKind(library, state, 'home'), 'rename');
+  library = Game.saveTeam(library, state, 'home', 'PC52 U19');
+  assert.deepEqual(library.map((t) => t.name), ['PC52 Under 19']);
+  assert.equal(state.origins.home, 'PC52 Under 19');
+
+  // ... oppure copia (restano tutte e due)
+  state.names.home = 'PC52 U17';
+  assert.equal(Game.saveKind(library, state, 'home'), 'rename');
+  library = Game.saveTeam(library, state, 'home');
+  assert.deepEqual(library.map((t) => t.name), ['PC52 U17', 'PC52 Under 19']);
+
+  // il nome è quello di un'altra squadra salvata: si chiede se sostituirla
+  Game.addPlayer(state, 'away', '5');
+  state.names.away = 'pc52 u17';
+  assert.equal(Game.saveKind(library, state, 'away'), 'replace');
+});
+
+test('richiamare una squadra ricorda da quale squadra salvata vengono i giocatori', () => {
+  const state = Game.newGame(NAMES);
+  const library = [{ name: 'PC52 U19', players: [{ number: 4, name: '' }] }];
+  Game.loadTeam(state, 'away', library[0]);
+  assert.equal(state.origins.away, 'PC52 U19');
+  assert.equal(Game.saveKind(library, state, 'away'), 'update');
+  assert.equal(Game.newGame(state.names, state).origins.away, 'PC52 U19', 'resta dopo «Nuova partita»');
+  assert.equal(Game.saveKind([], state, 'away'), 'new', 'se la squadra salvata è stata eliminata, è nuova');
+});

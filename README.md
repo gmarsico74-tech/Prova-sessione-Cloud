@@ -30,9 +30,11 @@ Una pagina sola, senza installare nulla e senza connessione.
   al quinto diventa rosso, il numero del giocatore si colora di rosso e i suoi pulsanti dei punti si spengono.
   Si toglie dall'elenco solo un giocatore senza punti né falli.
   Spenta l'opzione, il tabellone torna come prima, con gli stessi punti.
-- **Squadre salvate**: in Impostazioni, «Salva squadra» conserva nome della squadra, numeri e nomi dei giocatori.
-  Nell'elenco «Squadre salvate» una squadra si richiama in casa o come ospite con un tocco, finché i giocatori
-  in campo non hanno ancora punti o falli. Le squadre restano salvate nel browser del dispositivo su cui le salvi;
+- **Squadre salvate**: in Impostazioni ogni squadra ha il campo «Nome squadra» (lo stesso nome che compare in alto
+  nel tabellone) e «Salva squadra» conserva nome, numeri e nomi dei giocatori. Nell'elenco «Squadre salvate» ogni
+  squadra ha quattro pulsanti: «In casa» e «Ospite» la richiamano, finché i giocatori in campo non hanno ancora
+  punti o falli; «Modifica» la apre nel riquadro della squadra di casa, dove si cambiano nome e giocatori e
+  «Salva squadra» la aggiorna (se il nome è cambiato chiede se rinominarla o salvarne una copia); «Elimina» la toglie. Le squadre restano salvate nel browser del dispositivo su cui le salvi;
   per portarle su un altro, «Invia squadre» crea un link con tutte le squadre salvate (numeri e nomi compresi):
   aperto sull'altro dispositivo, il tabellone chiede conferma e le aggiunge, sostituendo quelle con lo stesso nome.
   Dalla pagina aperta come file il link punta comunque al sito online.

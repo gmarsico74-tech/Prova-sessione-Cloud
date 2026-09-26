@@ -31,6 +31,8 @@
       settings: { playerMode: false, friendly: false, ...setup.settings },
       rosters: { home: [...(setup.rosters?.home ?? [])], away: [...(setup.rosters?.away ?? [])] },
       playerNames: { home: { ...setup.playerNames?.home }, away: { ...setup.playerNames?.away } },
+      // da quale squadra salvata vengono i giocatori di ciascun lato, per aggiornarla o rinominarla
+      origins: { home: setup.origins?.home ?? null, away: setup.origins?.away ?? null },
       period: 1,
       clock: freshClock(1),
       events: [],
@@ -366,7 +368,27 @@
     state.names[team] = saved.name;
     state.rosters[team] = saved.players.map((p) => p.number).sort((a, b) => a - b);
     state.playerNames[team] = Object.fromEntries(saved.players.filter((p) => p.name).map((p) => [p.number, p.name]));
+    state.origins[team] = saved.name;
     return null;
+  }
+
+  // Cosa fa «Salva squadra»: 'new' la aggiunge; 'update' aggiorna la squadra salvata da cui vengono i giocatori;
+  // 'rename' vale quando a quella squadra è stato cambiato il nome; 'replace' quando il nome è di un'altra squadra salvata.
+  function saveKind(library, state, team) {
+    const name = state.names[team];
+    const origin = state.origins[team];
+    const fromLibrary = origin !== null && hasStoredTeam(library, origin);
+    if (fromLibrary && sameName(origin, name)) return 'update';
+    if (hasStoredTeam(library, name)) return 'replace';
+    return fromLibrary ? 'rename' : 'new';
+  }
+
+  // Salva la squadra; con renameFrom toglie la vecchia squadra salvata con quel nome, così è una rinomina.
+  function saveTeam(library, state, team, renameFrom = null) {
+    const snapshot = teamSnapshot(state, team);
+    const rest = renameFrom === null ? library : library.filter((t) => !sameName(t.name, renameFrom));
+    state.origins[team] = snapshot.name;
+    return storeTeam(rest, snapshot);
   }
 
   // Si esce dall'amichevole solo se nessuna squadra ha più giocatori di quelli ammessi in campionato.
@@ -445,6 +467,8 @@
     encodeLibrary,
     decodeLibrary,
     loadTeam,
+    saveKind,
+    saveTeam,
     formatClock,
     formatShot,
   };

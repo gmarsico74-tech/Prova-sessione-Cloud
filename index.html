@@ -109,7 +109,11 @@
         <p class="error" id="friendly-error" aria-live="polite"></p>
         <div class="rosters">
           <div class="roster" data-roster="home">
-            <h3><span data-role="roster-name"></span> <span class="roster-count" data-role="roster-count"></span></h3>
+            <h3>Squadra di casa <span class="roster-count" data-role="roster-count"></span></h3>
+            <label class="team-field">
+              Nome squadra
+              <input type="text" class="roster-team-name" maxlength="14" spellcheck="false" aria-label="Nome della squadra di casa">
+            </label>
             <ol class="roster-list" data-role="roster-list"></ol>
             <form class="add-player" novalidate>
               <input type="number" class="add-number" min="0" max="99" step="1" inputmode="numeric" placeholder="N°" aria-label="Numero di maglia da aggiungere alla squadra di casa">
@@ -121,7 +125,11 @@
             <p class="note" data-role="note" aria-live="polite"></p>
           </div>
           <div class="roster" data-roster="away">
-            <h3><span data-role="roster-name"></span> <span class="roster-count" data-role="roster-count"></span></h3>
+            <h3>Squadra ospite <span class="roster-count" data-role="roster-count"></span></h3>
+            <label class="team-field">
+              Nome squadra
+              <input type="text" class="roster-team-name" maxlength="14" spellcheck="false" aria-label="Nome della squadra ospite">
+            </label>
             <ol class="roster-list" data-role="roster-list"></ol>
             <form class="add-player" novalidate>
               <input type="number" class="add-number" min="0" max="99" step="1" inputmode="numeric" placeholder="N°" aria-label="Numero di maglia da aggiungere alla squadra ospite">
