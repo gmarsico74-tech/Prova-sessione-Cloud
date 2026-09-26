@@ -28,6 +28,7 @@ function load() {
       saved.settings ??= { playerMode: false, friendly: false }; // e prima dei giocatori
       saved.rosters ??= { home: [], away: [] };
       saved.playerNames ??= { home: {}, away: {} }; // e prima dei nomi
+      saved.origins ??= { home: null, away: null }; // e prima di «Modifica»
       return saved;
     }
   } catch {
@@ -182,7 +183,8 @@ function renderSettings() {
   const max = Game.maxPlayers(state);
   for (const team of TEAMS) {
     const box = $(`[data-roster="${team}"]`);
-    $('[data-role="roster-name"]', box).textContent = state.names[team];
+    const nameField = $('.roster-team-name', box);
+    if (document.activeElement !== nameField) nameField.value = state.names[team];
     $('[data-role="roster-count"]', box).textContent = `${rosters[team].length} su ${max}`;
     renderRosterList($('[data-role="roster-list"]', box), team);
   }
@@ -248,13 +250,17 @@ function renderLibrary() {
     li.dataset.saved = saved.name;
     const who = document.createElement('span');
     who.className = 'lib-who';
-    who.append(cell('lib-name', saved.name), cell('lib-count', `${saved.players.length} giocatori`));
-    li.append(
-      who,
+    const count = saved.players.length;
+    who.append(cell('lib-name', saved.name), cell('lib-count', `${count} ${count === 1 ? 'giocatore' : 'giocatori'}`));
+    const actions = document.createElement('div');
+    actions.className = 'lib-actions';
+    actions.append(
       libraryButton('load-team', 'In casa', `Richiama in casa: ${saved.name}`, 'home'),
       libraryButton('load-team', 'Ospite', `Richiama come ospite: ${saved.name}`, 'away'),
-      libraryButton('delete-team', '✕', `Elimina la squadra salvata ${saved.name}`)
+      libraryButton('edit-team', 'Modifica', `Modifica la squadra salvata ${saved.name}`),
+      libraryButton('delete-team', 'Elimina', `Elimina la squadra salvata ${saved.name}`)
     );
+    li.append(who, actions);
     return li;
   });
   list.replaceChildren(...items);
@@ -484,17 +490,41 @@ document.addEventListener('click', (e) => {
     }
     case 'save-team': {
       const box = btn.closest('[data-roster]');
-      const snapshot = Game.teamSnapshot(state, box.dataset.roster);
-      if (snapshot.players.length === 0) {
+      const side = box.dataset.roster;
+      const name = state.names[side];
+      const origin = state.origins[side];
+      if (state.rosters[side].length === 0) {
         showNote(box, 'Aggiungi prima almeno un giocatore.');
         return;
       }
-      const replace = `C'è già una squadra salvata «${snapshot.name}»: la sostituisco con questa?`;
-      if (Game.hasStoredTeam(library, snapshot.name) && !confirm(replace)) return;
-      library = Game.storeTeam(library, snapshot);
+      const kind = Game.saveKind(library, state, side);
+      if (kind === 'replace' && !confirm(`C'è già una squadra salvata «${name}»: la sostituisco con questa?`)) return;
+      let renameFrom = null;
+      if (kind === 'rename') {
+        const ask =
+          `Hai cambiato il nome da «${origin}» a «${name}».\n\n` +
+          `OK = rinomina: «${origin}» diventa «${name}».\n` +
+          `Annulla = copia: tieni «${origin}» e salvi anche «${name}».`;
+        if (confirm(ask)) renameFrom = origin;
+      }
+      library = Game.saveTeam(library, state, side, renameFrom);
       saveLibrary();
-      showNote(box, `Squadra salvata come «${snapshot.name}».`);
+      if (kind === 'update') showNote(box, `Squadra «${name}» aggiornata.`);
+      else if (renameFrom) showNote(box, `Squadra rinominata in «${name}».`);
+      else showNote(box, `Squadra salvata come «${name}».`);
       break;
+    }
+    case 'edit-team': {
+      // si modifica nel riquadro della squadra di casa: poi «Salva squadra» la aggiorna
+      const saved = library.find((t) => t.name === btn.closest('[data-saved]').dataset.saved);
+      if (!saved) break;
+      const box = $('[data-roster="home"]');
+      const error = Game.loadTeam(state, 'home', saved);
+      $('[data-role="error"]', box).textContent = error ?? '';
+      showNote(box, error ? '' : `Stai modificando «${saved.name}»: cambia nome e giocatori, poi premi «Salva squadra».`);
+      update();
+      if (!error) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
     }
     case 'load-team': {
       const saved = library.find((t) => t.name === btn.closest('[data-saved]').dataset.saved);
@@ -545,6 +575,22 @@ for (const input of document.querySelectorAll('.team-name')) {
     state.names[team] = input.value.trim() || DEFAULT_NAMES[team];
     save();
     fitName(input);
+    renderLog();
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') input.blur();
+  });
+  input.addEventListener('blur', render);
+}
+
+for (const input of document.querySelectorAll('.roster-team-name')) {
+  const team = input.closest('[data-roster]').dataset.roster;
+  input.addEventListener('input', () => {
+    state.names[team] = input.value.trim() || DEFAULT_NAMES[team];
+    save();
+    const board = $(`[data-team="${team}"] .team-name`);
+    board.value = state.names[team];
+    fitName(board);
     renderLog();
   });
   input.addEventListener('keydown', (e) => {

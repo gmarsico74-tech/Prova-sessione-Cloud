@@ -571,6 +571,19 @@ input:focus-visible {
   color: var(--muted);
 }
 
+.team-field {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.team-field input {
+  font-weight: 700;
+}
+
+.team-field input,
 .roster-list input,
 .add-player input {
   width: 100%;
@@ -579,7 +592,7 @@ input:focus-visible {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--panel-2);
-  color: inherit;
+  color: var(--text);
   font: inherit;
 }
 
@@ -614,8 +627,14 @@ input:focus-visible {
 
 .library-list li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto 44px;
-  align-items: center;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.lib-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -635,7 +654,7 @@ input:focus-visible {
 }
 
 .library-list button {
-  padding: 0 12px;
+  padding: 0;
 }
 
 .library-help {
@@ -731,7 +750,7 @@ input:focus-visible {
   }
 
   .library-list button {
-    padding: 0 8px;
+    font-size: 15px;
   }
 
   .topbar-actions button {
@@ -743,5 +762,17 @@ input:focus-visible {
   .player {
     grid-template-columns: minmax(0, 1fr) 2rem repeat(4, 2.4rem);
     gap: 4px;
+  }
+
+  .add-player {
+    grid-template-columns: 4.2em minmax(0, 1fr) auto;
+  }
+
+  .add-player input {
+    padding: 0 8px;
+  }
+
+  .library-list button {
+    font-size: 14px;
   }
 }
