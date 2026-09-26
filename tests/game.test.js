@@ -191,3 +191,126 @@ test('formato dei 24 secondi: secondi interi, decimi negli ultimi cinque', () =>
   assert.equal(Game.formatShot(4_999), '4.9');
   assert.equal(Game.formatShot(0), '0.0');
 });
+
+function playerGame() {
+  const state = Game.newGame(NAMES);
+  state.settings.playerMode = true;
+  for (const n of ['4', '7', '11']) Game.addPlayer(state, 'home', n);
+  return state;
+}
+
+test('i punti dei giocatori si sommano al punteggio della squadra', () => {
+  const state = playerGame();
+  Game.addPoints(state, 0, 'home', 3, 7);
+  Game.addPoints(state, 0, 'home', 2, 4);
+  Game.addPoints(state, 0, 'home', 2, 7);
+  assert.equal(Game.playerPoints(state.events, 'home', 7), 5);
+  assert.equal(Game.playerPoints(state.events, 'home', 4), 2);
+  assert.equal(Game.score(state.events, 'home'), 7);
+});
+
+test('la correzione dei punti non scende sotto zero, né per la squadra né per il giocatore', () => {
+  const state = playerGame();
+  Game.addPoints(state, 0, 'home', 2, 7);
+  assert.equal(Game.removePoints(state, 0, 'home', 3, 7), false);
+  assert.equal(Game.removePoints(state, 0, 'home', 2, 4), false);
+  assert.ok(Game.removePoints(state, 0, 'home', 1, 7)); // era un +1, non un +2
+  assert.equal(Game.playerPoints(state.events, 'home', 7), 1);
+  assert.equal(Game.score(state.events, 'home'), 1);
+
+  const team = Game.newGame(NAMES);
+  assert.equal(Game.removePoints(team, 0, 'away', 1), false);
+  Game.addPoints(team, 0, 'away', 2);
+  assert.ok(Game.removePoints(team, 0, 'away', 2));
+  assert.equal(Game.score(team.events, 'away'), 0);
+});
+
+test('i falli dei giocatori contano nei falli di squadra e al quinto il giocatore esce', () => {
+  const state = playerGame();
+  for (let i = 0; i < 5; i++) Game.addFoul(state, 0, 'home', 11);
+  assert.equal(Game.playerFouls(state.events, 'home', 11), Game.PLAYER_FOUL_LIMIT);
+  assert.equal(Game.teamFouls(state.events, 'home', 1), 5);
+});
+
+test('togliere un fallo lo toglie dal periodo in cui era stato fischiato', () => {
+  const state = playerGame();
+  Game.addFoul(state, 0, 'home', 4);
+  Game.goToPeriod(state, 2);
+  Game.addFoul(state, 0, 'home', 7);
+  assert.ok(Game.removeFoul(state, 0, 'home', 4)); // errore del primo quarto scoperto nel secondo
+  assert.equal(Game.teamFouls(state.events, 'home', 1), 0);
+  assert.equal(Game.teamFouls(state.events, 'home', 2), 1);
+  assert.equal(Game.playerFouls(state.events, 'home', 4), 0);
+  assert.equal(Game.removeFoul(state, 0, 'home', 4), false);
+});
+
+test('senza giocatori il meno fallo toglie l\'ultimo fallo della squadra', () => {
+  const state = Game.newGame(NAMES);
+  assert.equal(Game.removeFoul(state, 0, 'away'), false);
+  Game.addFoul(state, 0, 'away');
+  Game.addFoul(state, 0, 'away');
+  assert.ok(Game.removeFoul(state, 0, 'away'));
+  assert.equal(Game.teamFouls(state.events, 'away', 1), 1);
+});
+
+test('annulla toglie anche una correzione', () => {
+  const state = playerGame();
+  Game.addPoints(state, 0, 'home', 3, 7);
+  Game.removePoints(state, 0, 'home', 1, 7);
+  Game.undo(state);
+  assert.equal(Game.playerPoints(state.events, 'home', 7), 3);
+});
+
+test('numeri di maglia: da 0 a 99, senza doppioni, in ordine', () => {
+  const state = Game.newGame(NAMES);
+  assert.equal(Game.addPlayer(state, 'home', '23'), null);
+  assert.equal(Game.addPlayer(state, 'home', '0'), null);
+  assert.equal(Game.addPlayer(state, 'home', '5'), null);
+  assert.deepEqual(state.rosters.home, [0, 5, 23]);
+  assert.match(Game.addPlayer(state, 'home', '23'), /c'è già/);
+  for (const bad of ['100', '-1', '7.5', '', 'abc']) {
+    assert.match(Game.addPlayer(state, 'home', bad), /da 0 a 99/, bad);
+  }
+  assert.equal(Game.addPlayer(state, 'away', '23'), null, 'lo stesso numero va bene nell\'altra squadra');
+});
+
+test('al massimo 12 giocatori, 16 in amichevole', () => {
+  const state = Game.newGame(NAMES);
+  for (let n = 0; n < 12; n++) assert.equal(Game.addPlayer(state, 'home', String(n)), null);
+  assert.match(Game.addPlayer(state, 'home', '50'), /12 giocatori.*16/);
+  assert.equal(Game.setFriendly(state, true), null);
+  for (let n = 12; n < 16; n++) assert.equal(Game.addPlayer(state, 'home', String(n)), null);
+  assert.match(Game.addPlayer(state, 'home', '50'), /16 giocatori/);
+  assert.match(Game.setFriendly(state, false), /togli/);
+  assert.equal(state.settings.friendly, true);
+});
+
+test('si toglie solo un giocatore senza punti né falli', () => {
+  const state = playerGame();
+  Game.addPoints(state, 0, 'home', 2, 7);
+  assert.equal(Game.removePlayer(state, 'home', 7), false);
+  Game.removePoints(state, 0, 'home', 2, 7);
+  assert.ok(Game.removePlayer(state, 'home', 7));
+  assert.deepEqual(state.rosters.home, [4, 11]);
+});
+
+test('una nuova partita tiene impostazioni e numeri di maglia', () => {
+  const state = playerGame();
+  Game.addPoints(state, 0, 'home', 2, 4);
+  const next = Game.newGame(state.names, state);
+  assert.equal(next.settings.playerMode, true);
+  assert.deepEqual(next.rosters.home, [4, 7, 11]);
+  assert.equal(next.events.length, 0);
+  next.rosters.home.push(99);
+  assert.deepEqual(state.rosters.home, [4, 7, 11], 'le due partite non condividono la lista');
+});
+
+test('annullare la correzione di un giocatore tolto dall\'elenco lo fa rientrare', () => {
+  const state = playerGame();
+  Game.addPoints(state, 0, 'home', 2, 7);
+  Game.removePoints(state, 0, 'home', 2, 7);
+  assert.ok(Game.removePlayer(state, 'home', 7));
+  Game.undo(state);
+  assert.deepEqual(state.rosters.home, [4, 7, 11]);
+  assert.equal(Game.playerPoints(state.events, 'home', 7), 2);
+});
