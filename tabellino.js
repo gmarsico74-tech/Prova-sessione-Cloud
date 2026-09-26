@@ -1,6 +1,6 @@
 'use strict';
 
-// Disegna il tabellino: i punti di ogni periodo e, per ogni squadra, punti, canestri e falli dei giocatori.
+// Disegna il tabellino: i punti di ogni periodo e, per ogni squadra, minuti, punti, canestri e falli dei giocatori.
 // Lo usano sia il tabellone sia la pagina del tabellino pubblicato (tabellino.html).
 (function (root) {
   const COLUMNS = [
@@ -43,15 +43,23 @@
     return [line.pts, ...line.made, line.fouls].map((n) => el('td', '', String(n)));
   }
 
+  // I minuti ci sono solo se della squadra è stato detto almeno un quintetto.
   function teamTable(side, team) {
     const wrap = el('div', 'box-team');
     wrap.dataset.side = team;
     const totals = Game.boxTotals(side);
+    const minutes = side.players.some((p) => p.secs !== null && p.secs !== undefined);
+    const minCell = (p) => (minutes ? [el('td', 'min', p && p.secs ? Game.formatMinutes(p.secs) : '')] : []);
     const title = el('h3');
     title.append(el('span', 'box-team-name', side.name), el('span', 'box-team-pts', String(totals.pts)));
     const table = el('table', 'box-table');
     const head = el('tr');
     head.append(el('th', 'num', 'N°'), el('th', 'who', 'Giocatore'));
+    if (minutes) {
+      const th = el('th', 'min', 'MIN');
+      th.title = 'Minuti in campo';
+      head.append(th);
+    }
     for (const [abbr, meaning] of COLUMNS) {
       const th = el('th', '', abbr);
       th.title = meaning;
@@ -61,18 +69,18 @@
     for (const p of side.players) {
       const tr = el('tr');
       tr.classList.toggle('out', p.fouls >= Game.PLAYER_FOUL_LIMIT);
-      tr.append(el('td', 'num', String(p.number)), el('td', 'who', p.name), ...lineCells(p));
+      tr.append(el('td', 'num', String(p.number)), el('td', 'who', p.name), ...minCell(p), ...lineCells(p));
       body.append(tr);
     }
     // quello segnato senza giocatore; senza giocatori è tutto lì e basta il totale
     if (side.players.length > 0 && [side.team.pts, ...side.team.made, side.team.fouls].some(Boolean)) {
       const tr = el('tr', 'team-line');
-      tr.append(el('td', 'num'), el('td', 'who', 'Squadra'), ...lineCells(side.team));
+      tr.append(el('td', 'num'), el('td', 'who', 'Squadra'), ...minCell(), ...lineCells(side.team));
       body.append(tr);
     }
     const foot = el('tfoot');
     const total = el('tr');
-    total.append(el('td', 'num'), el('td', 'who', 'Totale'), ...lineCells(totals));
+    total.append(el('td', 'num'), el('td', 'who', 'Totale'), ...minCell(), ...lineCells(totals));
     foot.append(total);
     table.append(el('thead'), body, foot);
     table.tHead.append(head);

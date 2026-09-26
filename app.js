@@ -35,7 +35,8 @@ function load() {
       saved.settings ??= { playerMode: false, friendly: false }; // e prima dei giocatori
       saved.settings.shotClock ??= false; // e prima che i 24 secondi fossero facoltativi
       saved.settings.voice ??= false; // e prima dei comandi vocali
-      saved.clockLog ??= []; // e prima del file per il video
+      saved.settings.timeSource ??= 'app'; // e prima del tempo detto a voce
+      saved.date ??= null; // e prima del giorno della partita
       saved.rosters ??= { home: [], away: [] };
       saved.playerNames ??= { home: {}, away: {} }; // e prima dei nomi
       saved.origins ??= { home: null, away: null }; // e prima di «Modifica»
@@ -82,6 +83,7 @@ function render() {
   const { events, period } = state;
   document.body.classList.toggle('player-mode', state.settings.playerMode);
   document.body.classList.toggle('voice-mode', state.settings.voice);
+  document.body.classList.toggle('voice-time', state.settings.voice && state.settings.timeSource === 'voice');
   $('.shot-row').hidden = !state.settings.shotClock;
   $('#voice-dock').hidden = !state.settings.voice;
   $('#dock-score').textContent =
@@ -117,7 +119,7 @@ function render() {
   $('[data-action="undo"]').disabled = events.length === 0;
   renderClock();
   renderLog();
-  Tabellino.render($('#box'), Game.boxScore(state));
+  Tabellino.render($('#box'), Game.boxScore(state, Date.now()));
   renderSettings();
 }
 
@@ -148,6 +150,7 @@ function renderPlayers(panel, team) {
     return;
   }
   const fix = correcting[team];
+  const court = Game.courtAt(state.events, team, Game.boardTime(state, Date.now()));
   const head = document.createElement('li');
   head.className = 'player head';
   head.setAttribute('aria-hidden', 'true');
@@ -159,6 +162,7 @@ function renderPlayers(panel, team) {
     const li = document.createElement('li');
     li.className = 'player';
     li.classList.toggle('out', out);
+    li.classList.toggle('on-court', court?.has(number) ?? false);
     li.dataset.player = number;
     const who = document.createElement('span');
     who.className = 'p-who';
@@ -197,6 +201,9 @@ function renderSettings() {
   $('#player-mode').checked = settings.playerMode;
   $('#voice-mode').checked = settings.voice;
   $('#voice-help').hidden = !settings.voice;
+  for (const radio of document.querySelectorAll('[name="time-source"]')) radio.checked = radio.value === settings.timeSource;
+  const dateField = $('#game-date');
+  if (document.activeElement !== dateField) dateField.value = Game.gameDate(state, Date.now());
   $('#voice-support').textContent = Voice.supported
     ? ''
     : 'Questo browser non capisce la voce: su Android usa Chrome, su iPhone e iPad Safari.';
@@ -334,7 +341,7 @@ function shareTeams() {
 function publishBox() {
   const now = Date.now();
   const status = Game.gameStatus(state, now);
-  const code = Game.encodeBox(Game.boxScore(state), { date: Game.gameDate(state, now), status });
+  const code = Game.encodeBox(Game.boxScore(state, now), { date: Game.gameDate(state, now), status });
   const page = location.protocol.startsWith('http') ? new URL('tabellino.html', location.href) : new URL('tabellino.html', SITE_URL);
   page.hash = code;
   const { home, away } = state.names;
@@ -361,8 +368,8 @@ function downloadVideoFile() {
   link.remove();
   setTimeout(() => URL.revokeObjectURL(link.href), 60000);
   $('#box-note').textContent =
-    state.clockLog.length === 0
-      ? `Scaricato «${name}», ma il cronometro non è mai partito: senza la palla a due il file non si allinea al video.`
+    state.events.length === 0
+      ? `Scaricato «${name}», ma non ci sono ancora azioni.`
       : `Scaricato «${name}»: mandalo sul Mac insieme al video della partita.`;
 }
 
@@ -425,6 +432,10 @@ function renderLog() {
       what = e.pts > 0 ? `+${e.pts}` : `−${-e.pts} correzione`;
     } else if (e.type === 'foul') {
       what = e.n < 0 ? 'fallo tolto' : 'fallo';
+    } else if (e.type === 'lineup') {
+      what = `in campo ${e.on.join(' ')}`;
+    } else if (e.type === 'sub') {
+      what = `entra ${e.in.join(' ')}, esce ${e.out.join(' ')}`;
     } else {
       what = 'timeout';
     }
@@ -450,8 +461,12 @@ function cell(className, text) {
 }
 
 function toggleClock(now) {
-  if (!state.clock.running) unlockAudio();
-  Game.toggleClock(state, now);
+  if (state.clock.running) {
+    Game.pauseClock(state.clock, now);
+  } else {
+    unlockAudio();
+    Game.startClock(state.clock, now);
+  }
 }
 
 // I browser suonano solo dopo un gesto dell'utente: l'audio si prepara al clic su Avvia.
@@ -552,7 +567,7 @@ function toggleFullscreen() {
 }
 
 function tick() {
-  const expired = Game.expire(state, Date.now());
+  const expired = Game.checkExpiry(state.clock, Date.now(), state.settings.shotClock);
   if (expired) {
     buzzer(expired === 'period' ? 1.2 : 0.6);
     update();
@@ -602,13 +617,13 @@ document.addEventListener('click', (e) => {
       toggleFullscreen();
       break;
     case 'reset-clock':
-      Game.goToPeriod(state, state.period, now);
+      Game.goToPeriod(state, state.period);
       break;
     case 'prev-period':
-      Game.goToPeriod(state, state.period - 1, now);
+      Game.goToPeriod(state, state.period - 1);
       break;
     case 'next-period':
-      Game.goToPeriod(state, state.period + 1, now);
+      Game.goToPeriod(state, state.period + 1);
       break;
     case 'remove-player': {
       const box = btn.closest('[data-roster]');
@@ -767,6 +782,20 @@ $('#voice-mode').addEventListener('change', (e) => {
   state.settings.voice = e.target.checked;
   if (e.target.checked) state.settings.playerMode = true;
   correcting.home = correcting.away = false;
+  update();
+});
+
+// Con il tempo detto a voce il cronometro dell'app non corre: si ferma e segue i tempi detti.
+for (const radio of document.querySelectorAll('[name="time-source"]')) {
+  radio.addEventListener('change', () => {
+    state.settings.timeSource = radio.value;
+    if (radio.value === 'voice') Game.pauseClock(state.clock, Date.now());
+    update();
+  });
+}
+
+$('#game-date').addEventListener('change', (e) => {
+  state.date = /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) ? e.target.value : null;
   update();
 });
 

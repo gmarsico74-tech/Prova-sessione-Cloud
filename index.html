@@ -112,6 +112,10 @@
 
     <section class="settings-panel">
       <h2>Impostazioni</h2>
+      <label class="team-field date-field">
+        Giorno della partita
+        <input type="date" id="game-date">
+      </label>
       <label class="check">
         <input type="checkbox" id="shot-clock">
         24 secondi
@@ -125,19 +129,39 @@
         Comandi vocali
       </label>
       <div id="voice-help" class="voice-help" hidden>
+        <fieldset class="time-source">
+          <legend>Il tempo delle azioni</legend>
+          <label class="check">
+            <input type="radio" name="time-source" value="app">
+            Dal cronometro di questo tabellone, che fai partire e fermare tu
+          </label>
+          <label class="check">
+            <input type="radio" name="time-source" value="voice">
+            Detto a voce, leggendo il tabellone della partita o del video: il cronometro qui resta fermo
+          </label>
+        </fieldset>
         <p>
-          In fondo allo schermo restano due pulsanti: il cronometro e il microfono. Tieni premuto il microfono,
-          parla e lascia: il tabellone esegue il comando e lo conferma con un bip, due bip bassi se non ha capito.
+          Tieni premuto il microfono, parla e lascia: il tabellone esegue il comando e lo conferma con un bip,
+          due bip bassi se non ha capito. Ogni azione è agganciata al tempo del tabellone, periodo e minuti,
+          non all'ora: così vale anche per una partita segnata guardando il video.
         </p>
         <ul>
           <li>«canestro del 25» · «canestro da 3 del 25 PC52» · «tripla di Rossi»</li>
           <li>«tiro libero del 7» · «2 liberi del 7 ospiti»</li>
-          <li>«fallo del 12» · «fallo del 14 ospiti»</li>
-          <li>«canestro da 2 ospiti», che va alla squadra senza giocatore · «annulla»</li>
+          <li>«fallo del 12» · «fallo del 14 ospiti» · «canestro da 2 ospiti», alla squadra senza giocatore</li>
+          <li>«quintetto 4 7 9 12 25 PC52 inizio del primo quarto»</li>
+          <li>«entra il 12, esce il 7» · «entrano 12 e 14, escono 7 e 9»</li>
+          <li>«annulla»</li>
         </ul>
         <p>
+          Il tempo si dice così: «2 minuti e 26 secondi del terzo quarto», «terzo quarto, 2 e 26», «al 2 e 26»,
+          «45 secondi», «inizio del secondo quarto», «primo supplementare». Il periodo si può lasciare fuori:
+          vale quello del tabellone. Con il tempo dal cronometro dirlo non serve; se lo dici, vale quello detto.
+        </p>
+        <p>
           Il canestro senza valore vale 2. La squadra si dice con il suo nome, oppure «casa» e «ospiti», e serve
-          solo se il numero c'è in tutte e due le squadre o se non c'è ancora: in quel caso il giocatore viene aggiunto.
+          solo se il numero c'è in tutte e due le squadre o se non c'è ancora: in quel caso il giocatore viene
+          aggiunto. I minuti in campo si contano dal primo quintetto detto; chi è in campo ha il numero segnato in verde.
         </p>
         <p>
           Con un telecomando Bluetooth per presentazioni o per selfie il microfono si tiene premuto anche con

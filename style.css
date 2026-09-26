@@ -751,6 +751,10 @@ input:focus-visible {
   overflow-x: auto;
 }
 
+.box .min {
+  color: var(--muted);
+}
+
 .box .num {
   width: 3em;
   color: var(--accent);
@@ -807,8 +811,49 @@ input:focus-visible {
   color: var(--text);
 }
 
+.voice-help .time-source {
+  margin: 0 0 12px;
+  padding: 8px 12px 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+}
+
+.time-source legend {
+  padding: 0 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.date-field {
+  max-width: 16em;
+  margin: 0 0 8px;
+}
+
 .voice-mode .board {
   padding-bottom: 230px;
+}
+
+/* Con il tempo detto a voce il cronometro qui non serve: resta solo il microfono */
+
+.voice-time .dock-buttons {
+  grid-template-columns: 1fr;
+}
+
+.voice-time .dock-buttons [data-action="toggle-clock"] {
+  display: none;
+}
+
+/* Chi è in campo: il numero in verde */
+
+.player.on-court .p-num {
+  color: var(--go);
+}
+
+.player.on-court .p-num::after {
+  content: " ●";
+  font-size: 10px;
+  vertical-align: middle;
 }
 
 .voice-dock {

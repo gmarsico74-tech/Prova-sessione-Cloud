@@ -466,56 +466,27 @@ test('richiamare una squadra ricorda da quale squadra salvata vengono i giocator
   assert.equal(Game.saveKind([], state, 'away'), 'new', 'se la squadra salvata è stata eliminata, è nuova');
 });
 
-// ——— 24 secondi facoltativi e registro del cronometro ———
+// ——— 24 secondi facoltativi ———
 
 test('i 24 secondi sono spenti in una partita nuova e, spenti, non fermano il gioco', () => {
   const state = Game.newGame(NAMES);
   assert.equal(state.settings.shotClock, false);
-  Game.toggleClock(state, 0);
-  assert.equal(Game.expire(state, 30_000), null, 'dopo 30 secondi il cronometro corre ancora');
-  assert.ok(state.clock.running);
-  state.settings.shotClock = true;
-  Game.resetShot(state.clock, 30_000, Game.SHOT_MS);
-  assert.equal(Game.expire(state, 54_100), 'shot');
+  Game.startClock(state.clock, 0);
+  assert.equal(Game.checkExpiry(state.clock, 30_000, state.settings.shotClock), null, 'dopo 30 secondi corre ancora');
+  assert.equal(Game.checkExpiry(state.clock, 30_000), 'shot', 'con i 24 secondi accesi si sarebbe fermato');
 });
 
-test('il registro del cronometro annota avvii e fermate con l\'ora vera, anche della scadenza', () => {
+// ——— Il tempo del tabellone ———
+
+test('ogni azione tiene il tempo del tabellone: periodo e tempo che manca', () => {
   const state = Game.newGame(NAMES);
-  Game.toggleClock(state, 1_000);
-  Game.toggleClock(state, 61_000);
-  Game.toggleClock(state, 70_000);
-  Game.takeTimeout(state, 80_000, 'home');
-  Game.toggleClock(state, 90_000);
-  assert.equal(Game.expire(state, 90_000 + 530_050), 'period', 'restavano 530 secondi');
-  assert.deepEqual(
-    state.clockLog.map((c) => [c.type, c.at, c.reason ?? '']),
-    [
-      ['start', 1_000, ''],
-      ['stop', 61_000, ''],
-      ['start', 70_000, ''],
-      ['stop', 80_000, 'timeout'],
-      ['start', 90_000, ''],
-      ['stop', 620_000, 'period'],
-    ]
-  );
-  assert.equal(state.clockLog[1].clockMs, 540_000, 'alla prima fermata restavano 9 minuti');
+  Game.goToPeriod(state, 2);
+  Game.startClock(state.clock, 0);
+  Game.addPoints(state, 60_000, 'home', 3);
+  assert.equal(state.events[0].period, 2);
+  assert.equal(state.events[0].clockMs, 540_000);
+  assert.equal(state.events[0].at, undefined, 'nessuna ora del giorno');
 });
-
-test('cambiare periodo con il cronometro che corre annota la fermata', () => {
-  const state = Game.newGame(NAMES);
-  Game.toggleClock(state, 0);
-  Game.goToPeriod(state, 2, 5_000);
-  assert.deepEqual(state.clockLog.map((c) => [c.type, c.period]), [['start', 1], ['stop', 1]]);
-  assert.equal(state.clock.running, false);
-});
-
-test('ogni azione tiene l\'ora vera in cui è stata segnata', () => {
-  const state = Game.newGame(NAMES);
-  Game.addPoints(state, 123_456, 'home', 2);
-  assert.equal(state.events[0].at, 123_456);
-});
-
-// ——— Tabellino ———
 
 function gameWithPlayers() {
   const state = Game.newGame(NAMES);
@@ -527,6 +498,17 @@ function gameWithPlayers() {
   return state;
 }
 
+function voiceGame() {
+  const state = gameWithPlayers();
+  state.settings.voice = true;
+  state.settings.timeSource = 'voice';
+  return state;
+}
+
+const at = (period, min, sec) => ({ period, clockMs: (min * 60 + sec) * 1000 });
+
+// ——— Tabellino ———
+
 test('il tabellino conta punti, canestri da 1, 2 e 3 e falli di ogni giocatore, con i parziali', () => {
   const state = gameWithPlayers();
   Game.addPoints(state, 0, 'home', 3, 25);
@@ -537,23 +519,24 @@ test('il tabellino conta punti, canestri da 1, 2 e 3 e falli di ogni giocatore, 
   Game.addPoints(state, 0, 'away', 2);
   Game.addPoints(state, 0, 'home', 2, 25);
   Game.removePoints(state, 0, 'home', 2, 25); // correzione: quel canestro non c'era
-  const box = Game.boxScore(state);
+  const box = Game.boxScore(state, 0);
   assert.deepEqual(box.periods, [
     { period: 1, home: 6, away: 0 },
     { period: 2, home: 0, away: 2 },
   ]);
   const rossi = box.teams.home.players.find((p) => p.number === 25);
-  assert.deepEqual(rossi, { number: 25, name: 'Rossi', pts: 5, made: [0, 1, 1], fouls: 0 });
+  assert.deepEqual(rossi, { number: 25, name: 'Rossi', pts: 5, made: [0, 1, 1], fouls: 0, secs: null });
   assert.deepEqual(box.teams.away.team, { pts: 2, made: [0, 1, 0], fouls: 0 }, 'i punti senza giocatore');
   assert.deepEqual(Game.boxTotals(box.teams.away), { pts: 2, made: [0, 1, 0], fouls: 1 });
-  assert.deepEqual(Game.boxScore(state, 1).periods, [{ period: 1, home: 6, away: 0 }], 'fino alla fine del Q1');
+  assert.deepEqual(Game.boxScore(state, 0, 1).periods, [{ period: 1, home: 6, away: 0 }], 'fino alla fine del Q1');
 });
 
 test('il tabellino passa dentro un link e torna uguale; un link rovinato non si apre', () => {
-  const state = gameWithPlayers();
-  Game.addPoints(state, 0, 'home', 3, 25);
+  const state = voiceGame();
+  Game.voiceCommand(state, 0, ['quintetto 25 7 1 2 3 PC52 inizio primo quarto']);
+  Game.voiceCommand(state, 0, ['tripla del 25 al 9 e 30']);
   Game.addFoul(state, 0, 'away', 7);
-  const box = Game.boxScore(state);
+  const box = Game.boxScore(state, 0);
   const text = Game.encodeBox(box, { date: '2026-09-27', status: 'Finale' });
   assert.match(text, /^[\w.-]+$/, 'solo caratteri sicuri in un link');
   const back = Game.decodeBox(text);
@@ -561,6 +544,7 @@ test('il tabellino passa dentro un link e torna uguale; un link rovinato non si 
   assert.equal(back.status, 'Finale');
   assert.deepEqual(back.periods, box.periods);
   assert.deepEqual(back.teams, box.teams);
+  assert.equal(back.teams.home.players.find((p) => p.number === 25).secs, 30);
   assert.equal(Game.decodeBox('1.bm9uIMOoIHVuIHRhYmVsbGlubw'), null);
   assert.equal(Game.decodeBox('rovinato'), null);
 });
@@ -577,11 +561,54 @@ test('lo stato della partita: periodo e tempo, fine periodo, finale', () => {
   assert.equal(Game.gameStatus(state, 0), 'Finale');
 });
 
+test('il giorno della partita è quello scritto, altrimenti oggi', () => {
+  const state = Game.newGame(NAMES);
+  assert.equal(Game.gameDate(state, new Date(2026, 8, 27, 18).getTime()), '2026-09-27');
+  state.date = '2026-09-20';
+  assert.equal(Game.gameDate(state, new Date(2026, 8, 27, 18).getTime()), '2026-09-20');
+});
+
+// ——— Minuti in campo ———
+
+test('i minuti in campo si contano dal quintetto, con i cambi, e passano da un periodo all\'altro', () => {
+  const state = voiceGame();
+  const say = (text) => Game.voiceCommand(state, 0, [text]);
+  assert.equal(say('quintetto 25 7 1 2 3 PC52 inizio del primo quarto').ok, true);
+  assert.equal(say('entra il 4 esce il 7 al 6 e 00').ok, true);
+  assert.equal(say('entra il 7 esce il 25, 5 minuti del secondo quarto').ok, true);
+  Game.goToPeriod(state, 3); // fine del secondo quarto
+  const secs = (n) => Game.boxScore(state, 0).teams.home.players.find((p) => p.number === n).secs;
+  assert.equal(secs(25), 15 * 60, 'tutto il Q1 e metà del Q2');
+  assert.equal(secs(7), 4 * 60 + 5 * 60, '4 minuti nel Q1 e 5 nel Q2');
+  assert.equal(secs(4), 6 * 60 + 10 * 60, 'dal 6:00 del Q1 in poi');
+  assert.equal(secs(1), 20 * 60);
+  assert.equal(Game.boxScore(state, 0, 1).teams.home.players.find((p) => p.number === 25).secs, 600, 'a fine Q1');
+  assert.equal(Game.boxScore(state, 0).teams.away.players[0].secs, null, 'degli ospiti non c\'è il quintetto');
+});
+
+test('chi è in campo in un momento della partita', () => {
+  const state = voiceGame();
+  Game.voiceCommand(state, 0, ['quintetto 25 7 1 2 3 PC52 inizio primo quarto']);
+  Game.voiceCommand(state, 0, ['entrano 4 e 5 escono 1 e 2 al 3 e 20']);
+  assert.deepEqual([...Game.courtAt(state.events, 'home', at(1, 5, 0))].sort((a, b) => a - b), [1, 2, 3, 7, 25]);
+  assert.deepEqual([...Game.courtAt(state.events, 'home', at(1, 3, 0))].sort((a, b) => a - b), [3, 4, 5, 7, 25]);
+  assert.equal(Game.courtAt(state.events, 'away', at(1, 3, 0)), null);
+});
+
+test('un giocatore mai in campo e senza punti né falli si può togliere; uno che è stato in campo no', () => {
+  const state = voiceGame();
+  Game.voiceCommand(state, 0, ['quintetto 25 7 1 2 3 PC52 inizio primo quarto']);
+  assert.equal(Game.canRemovePlayer(state.events, 'home', 1), false);
+  Game.addPlayer(state, 'home', 30);
+  assert.equal(Game.canRemovePlayer(state.events, 'home', 30), true);
+});
+
 // ——— Il file per il video ———
 
-test('il file per il video ha le azioni con l\'ora vera e senza quelle corrette', () => {
+test('il file per il video aggancia le azioni al tempo del tabellone, in ordine e senza quelle corrette', () => {
   const state = gameWithPlayers();
-  Game.toggleClock(state, 1_000); // palla a due
+  Game.goToPeriod(state, 2);
+  Game.startClock(state.clock, 0);
   Game.addPoints(state, 20_000, 'home', 2, 25);
   Game.addPoints(state, 30_000, 'home', 2, 7);
   Game.removePoints(state, 40_000, 'home', 2, 7); // era del 7 per sbaglio
@@ -589,15 +616,14 @@ test('il file per il video ha le azioni con l\'ora vera e senza quelle corrette'
   Game.addFoul(state, 50_000, 'away', 12);
   Game.addFoul(state, 60_000, 'away', 12);
   const file = Game.videoFile(state, 70_000);
-  assert.equal(file.cronometro[0].evento, 'avvio');
-  assert.equal(file.cronometro[0].ms, 1_000);
+  assert.equal(file.cronometro, undefined, 'niente ore del giorno');
   assert.deepEqual(
-    file.azioni.map((a) => [a.ms, a.tipo, a.numero, a.scritta]),
+    file.azioni.map((a) => [a.periodo, a.tempo, a.ms_restanti, a.tipo, a.numero, a.scritta]),
     [
-      [20_000, 'canestro', 25, 'Canestro da 2 · #25 Rossi'],
-      [40_000, 'canestro', 25, 'Canestro da 2 · #25 Rossi'],
-      [50_000, 'fallo', 12, 'Fallo · #12 De Luca (1°)'],
-      [60_000, 'fallo', 12, 'Fallo · #12 De Luca (2°)'],
+      ['Q2', '9:40', 580_000, 'canestro', 25, 'Canestro da 2 · #25 Rossi'],
+      ['Q2', '9:20', 560_000, 'canestro', 25, 'Canestro da 2 · #25 Rossi'],
+      ['Q2', '9:10', 550_000, 'fallo', 12, 'Fallo · #12 De Luca (1°)'],
+      ['Q2', '9:00', 540_000, 'fallo', 12, 'Fallo · #12 De Luca (2°)'],
     ]
   );
   assert.deepEqual(file.azioni[1].punteggio, { casa: 4, ospiti: 0 });
@@ -605,22 +631,29 @@ test('il file per il video ha le azioni con l\'ora vera e senza quelle corrette'
   assert.equal(file.squadre.ospiti.giocatori.find((g) => g.numero === 12).nome, 'De Luca');
 });
 
-test('il file per il video ha il tabellino alla fine di ogni periodo', () => {
-  const state = gameWithPlayers();
-  Game.toggleClock(state, 0);
-  Game.addPoints(state, 5_000, 'home', 3, 25);
-  Game.expire(state, Game.QUARTER_MS + 50);
-  Game.goToPeriod(state, 2);
-  Game.toggleClock(state, 700_000);
-  Game.addPoints(state, 710_000, 'away', 2, 12);
-  const file = Game.videoFile(state, 720_000);
+test('nel file per il video le azioni dette fuori ordine tornano in ordine di tempo', () => {
+  const state = voiceGame();
+  Game.voiceCommand(state, 0, ['canestro del 25 al 5 e 00 del terzo quarto']);
+  Game.voiceCommand(state, 0, ['tripla del 25 al 8 e 10 del terzo quarto']); // detta dopo, avvenuta prima
+  const file = Game.videoFile(state, 0);
+  assert.deepEqual(file.azioni.map((a) => [a.tempo, a.punti, a.punteggio.casa]), [['8:10', 3, 3], ['5:00', 2, 5]]);
+});
+
+test('il file per il video ha il tabellino alla fine di ogni periodo finito, con i minuti', () => {
+  const state = voiceGame();
+  Game.voiceCommand(state, 0, ['quintetto 25 7 1 2 3 PC52 inizio primo quarto']);
+  Game.voiceCommand(state, 0, ['tripla del 25 al 5 e 00']);
+  Game.voiceCommand(state, 0, ['canestro del 12 al 9 e 00 del secondo quarto']);
+  const file = Game.videoFile(state, 0);
   assert.equal(file.fine_periodi.length, 1, 'il Q2 non è finito');
   const q1 = file.fine_periodi[0];
   assert.equal(q1.periodo, 'Q1');
-  assert.equal(q1.ms, Game.QUARTER_MS);
   assert.deepEqual(q1.punteggio, { casa: 3, ospiti: 0 });
-  assert.equal(q1.tabellino.casa.giocatori.find((g) => g.numero === 25).da3, 1);
-  assert.equal(Game.videoFileName(state, 0).endsWith('.json'), true);
+  const rossi = q1.tabellino.casa.giocatori.find((g) => g.numero === 25);
+  assert.equal(rossi.da3, 1);
+  assert.equal(rossi.minuti, '10:00');
+  assert.equal(file.azioni[0].tipo, 'quintetto');
+  assert.equal(file.azioni[0].in_campo.length, 5);
   assert.match(Game.videoFileName({ ...state, names: { home: 'PC52 Under 19', away: 'Città' } }, 0), /^partita_pc52-under-19_citta_\d{4}-\d{2}-\d{2}\.json$/);
 });
 
@@ -634,6 +667,7 @@ test('le parole della voce diventano minuscole, senza accenti, con i numeri in c
 
 test('i comandi vocali capiscono canestri, liberi, triple e falli', () => {
   const state = gameWithPlayers();
+  const now = at(1, 10, 0);
   const cases = [
     ['Canestro del numero 25 della PC52', { type: 'score', team: 'home', player: 25, pts: 2, count: 1 }],
     ['canestro da tre del 25', { type: 'score', team: 'home', player: 25, pts: 3, count: 1 }],
@@ -648,9 +682,69 @@ test('i comandi vocali capiscono canestri, liberi, triple e falli', () => {
     ['fallo del 7 ospiti', { type: 'foul', team: 'away', player: 7, count: 1 }],
     ['fallo del numero sette PC 52', { type: 'foul', team: 'home', player: 7, count: 1 }],
     ['fallo 12', { type: 'foul', team: 'away', player: 12, count: 1 }],
-    ['annulla', { type: 'undo' }],
   ];
-  for (const [heard, expected] of cases) assert.deepEqual(Game.parseCommand(state, heard), expected, heard);
+  for (const [heard, expected] of cases) {
+    assert.deepEqual(Game.parseCommand(state, heard, 0), { ...expected, at: now }, heard);
+  }
+  assert.deepEqual(Game.parseCommand(state, 'annulla', 0), { type: 'undo' });
+});
+
+test('il tempo del tabellone detto a voce, in tanti modi', () => {
+  const state = voiceGame();
+  const cases = [
+    ['tripla di Rossi 2 minuti e 26 secondi del terzo quarto', at(3, 2, 26)],
+    ['canestro del 25, terzo quarto, 2 e 26', at(3, 2, 26)],
+    ['terzo quarto due e ventisei canestro del 25', at(3, 2, 26)],
+    ['canestro del 25 alle 2:26 del 3° quarto', at(3, 2, 26)],
+    ['canestro del 25 a 45 secondi dal quarto quarto', at(4, 0, 45)],
+    ['canestro del 25 45.3 del quarto quarto', at(4, 0, 45)],
+    ['canestro del 25 8 minuti del primo quarto', at(1, 8, 0)],
+    ['canestro del 25 al 3 e 10 del primo supplementare', at(5, 3, 10)],
+    ['canestro del 25 al 1 e 5', at(1, 1, 5)],
+    ['quintetto 25 7 1 2 3 PC52 inizio del secondo quarto', at(2, 10, 0)],
+    ['quintetto 25 7 12 2 3 PC52 al 4 e 30 del secondo quarto', at(2, 4, 30)],
+  ];
+  for (const [heard, time] of cases) {
+    const cmd = Game.parseCommand(state, heard, 0);
+    assert.deepEqual(cmd.at, time, `${heard} → ${cmd.error}`);
+  }
+  assert.deepEqual(Game.parseCommand(state, 'quintetto 25 7 1 2 e 3 PC52 al 4 e 30', 0).on, [1, 2, 3, 7, 25], 'nel quintetto «2 e 3» sono giocatori');
+});
+
+test('con il tempo detto a voce il tempo va sempre detto e deve esistere', () => {
+  const state = voiceGame();
+  const cases = [
+    ['canestro del 25', /Manca il tempo/],
+    ['canestro del 25 al 12 e 30', /Nel Q1 il tempo va da 10:00 a 0:00/],
+    ['canestro del 25 al 6 e 20 del primo supplementare', /Nel TS1 il tempo va da 5:00/],
+    ['canestro del 25 2 minuti e 75 secondi', /I secondi vanno da 0 a 59/],
+  ];
+  for (const [heard, error] of cases) assert.match(Game.parseCommand(state, heard, 0).error, error, heard);
+  state.settings.timeSource = 'app';
+  assert.match(Game.parseCommand(state, 'canestro del 25 del terzo quarto', 0).error, /periodo ma non il tempo/);
+});
+
+test('con il tempo detto a voce il tabellone dell\'app segue il punto più avanti della partita', () => {
+  const state = voiceGame();
+  Game.voiceCommand(state, 0, ['canestro del 25 al 2 e 26 del terzo quarto']);
+  assert.equal(state.period, 3);
+  assert.equal(state.clock.remainingMs, 146_000);
+  assert.equal(state.clock.running, false);
+  Game.voiceCommand(state, 0, ['fallo del 12 al 5 e 00']); // senza periodo: il terzo, prima del 2:26
+  assert.deepEqual([state.events[1].period, state.events[1].clockMs], [3, 300_000]);
+  assert.equal(state.clock.remainingMs, 146_000, 'un\'azione di prima non riporta indietro il tabellone');
+  assert.equal(Game.teamFouls(state.events, 'away', 3), 1);
+});
+
+test('con il tempo dal cronometro vale il cronometro al momento in cui si preme il microfono', () => {
+  const state = gameWithPlayers();
+  Game.startClock(state.clock, 0);
+  const outcome = Game.voiceCommand(state, 150_000, ['canestro del 25']);
+  assert.equal(outcome.message, 'Canestro da 2 · #25 Rossi PC52 · 2–0 · Q1 7:30');
+  assert.equal(state.events[0].clockMs, 450_000);
+  Game.voiceCommand(state, 160_000, ['fallo del 12 al 9 e 00']); // un tempo detto vale anche qui
+  assert.equal(state.events[1].clockMs, 540_000);
+  assert.equal(state.clock.running, true, 'il cronometro continua a correre');
 });
 
 test('i comandi vocali non segnano niente se manca qualcosa o è ambiguo', () => {
@@ -660,7 +754,7 @@ test('i comandi vocali non segnano niente se manca qualcosa o è ambiguo', () =>
     ['canestro del 14', /non è in squadra/],
     ['canestro del 25 e del 7', /più numeri/],
     ['canestro del 25 PC52 ospiti', /tutte e due le squadre/],
-    ['il 25 ha fatto', /canestro o un fallo/],
+    ['il 25 ha fatto', /canestro, fallo, cambio o quintetto/],
     ['canestro e fallo del 25', /Un comando per volta/],
     ['tiro sbagliato da 2 del 25', /tiri sbagliati non si segnano ancora/],
     ['rimbalzo in difesa del 25', /rimbalzi/],
@@ -668,22 +762,50 @@ test('i comandi vocali non segnano niente se manca qualcosa o è ambiguo', () =>
     ['canestro', /Non ho capito chi/],
     ['', /Non ho sentito/],
   ];
-  for (const [heard, error] of cases) assert.match(Game.parseCommand(state, heard).error, error, heard);
+  for (const [heard, error] of cases) assert.match(Game.parseCommand(state, heard, 0).error, error, heard);
   for (let i = 0; i < 5; i++) Game.addFoul(state, 0, 'home', 7);
-  assert.match(Game.parseCommand(state, 'canestro del 7 PC52').error, /ha già 5 falli/);
+  assert.match(Game.parseCommand(state, 'canestro del 7 PC52', 0).error, /ha già 5 falli/);
+});
+
+test('quintetti e cambi: i controlli', () => {
+  const state = voiceGame();
+  const cases = [
+    ['quintetto 25 7 1 2 PC52 inizio primo quarto', /ho sentito 4 numeri/],
+    ['quintetto 25 7 1 2 3 inizio primo quarto', /di' anche la squadra/],
+    ['entra il 1 esce il 25 PC52 al 5 e 00', /Prima dimmi il quintetto/],
+  ];
+  for (const [heard, error] of cases) assert.match(Game.parseCommand(state, heard, 0).error, error, heard);
+  Game.voiceCommand(state, 0, ['quintetto 25 7 1 2 3 PC52 inizio primo quarto']);
+  const later = [
+    ['entra il 4 esce il 9 PC52 al 5 e 00', /Il 9 non è in campo/],
+    ['entra il 1 esce il 25 al 5 e 00', /Il 1 è già in campo/],
+    ['entrano 4 e 5 esce il 25 al 5 e 00', /Entrano 2 ed escono 1/],
+    ['entra il 4 al 5 e 00', /chi entra e chi esce/],
+  ];
+  for (const [heard, error] of later) assert.match(Game.parseCommand(state, heard, 0).error, error, heard);
+  for (let i = 0; i < 5; i++) Game.addFoul(state, 0, 'home', 7);
+  assert.match(Game.parseCommand(state, 'quintetto 25 7 1 2 3 PC52 al 4 e 00', 0).error, /ha già 5 falli/);
 });
 
 test('un comando vocale si esegue, un numero nuovo entra in squadra e «annulla» lo toglie', () => {
   const state = gameWithPlayers();
-  const scored = Game.voiceCommand(state, 5_000, ['canestro da 2 del 14 ospiti']);
+  const scored = Game.voiceCommand(state, 0, ['canestro da 2 del 14 ospiti']);
   assert.equal(scored.ok, true);
-  assert.equal(scored.message, 'Canestro da 2 · #14 OSPITI (nuovo in squadra) · 0–2');
+  assert.equal(scored.message, 'Canestro da 2 · #14 OSPITI (nuovo in squadra) · 0–2 · Q1 10:00');
   assert.deepEqual(state.rosters.away, [7, 12, 14]);
-  assert.equal(state.events[0].at, 5_000, 'l\'azione ha l\'ora in cui si è premuto il microfono');
-  const undone = Game.voiceCommand(state, 6_000, ['annulla']);
+  const undone = Game.voiceCommand(state, 0, ['annulla']);
   assert.equal(undone.message, 'Annullato: +2 #14 OSPITI');
   assert.deepEqual(state.rosters.away, [7, 12], 'il 14 esce di nuovo');
   assert.equal(Game.score(state.events, 'away'), 0);
+});
+
+test('un quintetto con numeri nuovi li aggiunge, e «annulla» li toglie', () => {
+  const state = voiceGame();
+  const outcome = Game.voiceCommand(state, 0, ['quintetto 4 5 6 7 12 ospiti inizio primo quarto']);
+  assert.equal(outcome.message, 'Quintetto OSPITI: 4 5 6 7 12 (nuovi in squadra) · Q1 10:00');
+  assert.deepEqual(state.rosters.away, [4, 5, 6, 7, 12]);
+  Game.voiceCommand(state, 0, ['annulla']);
+  assert.deepEqual(state.rosters.away, [7, 12]);
 });
 
 test('se la prima versione capita non è un comando, vale la prima che lo è', () => {
@@ -692,14 +814,14 @@ test('se la prima versione capita non è un comando, vale la prima che lo è', (
   assert.equal(outcome.ok, true);
   assert.equal(outcome.heard, 'canestro del 25');
   const failed = Game.voiceCommand(state, 0, ['ciao', 'buongiorno']);
-  assert.deepEqual(failed, { ok: false, heard: 'ciao', message: 'Non ho capito se è un canestro o un fallo.' });
+  assert.deepEqual(failed, { ok: false, heard: 'ciao', message: 'Non ho capito cosa è successo: canestro, fallo, cambio o quintetto?' });
   assert.equal(state.events.length, 1);
 });
 
 test('due liberi detti insieme sono due azioni da un punto', () => {
   const state = gameWithPlayers();
   const outcome = Game.voiceCommand(state, 0, ['due liberi del 25']);
-  assert.equal(outcome.message, '2 tiri liberi · #25 Rossi PC52 · 2–0');
+  assert.equal(outcome.message, '2 tiri liberi · #25 Rossi PC52 · 2–0 · Q1 10:00');
   assert.equal(state.events.length, 2);
 });
 
@@ -707,9 +829,10 @@ test('la squadra si riconosce anche da una parola sola del suo nome', () => {
   const state = gameWithPlayers();
   state.names.away = 'Virtus Padova';
   state.names.home = 'Basket PC52';
-  assert.deepEqual(Game.parseCommand(state, 'fallo del 7 Virtus'), { type: 'foul', team: 'away', player: 7, count: 1 });
-  assert.deepEqual(Game.parseCommand(state, 'fallo del 7 virtus padova'), { type: 'foul', team: 'away', player: 7, count: 1 });
-  assert.deepEqual(Game.parseCommand(state, 'fallo del 7 basket pc 52'), { type: 'foul', team: 'home', player: 7, count: 1 });
+  const foul7 = (team) => ({ type: 'foul', team, player: 7, count: 1, at: at(1, 10, 0) });
+  assert.deepEqual(Game.parseCommand(state, 'fallo del 7 Virtus', 0), foul7('away'));
+  assert.deepEqual(Game.parseCommand(state, 'fallo del 7 virtus padova', 0), foul7('away'));
+  assert.deepEqual(Game.parseCommand(state, 'fallo del 7 basket pc 52', 0), foul7('home'));
   state.names.away = 'Basket Treviso';
-  assert.match(Game.parseCommand(state, 'fallo del 7 basket').error, /tutte e due le squadre: di' anche la squadra/, 'Basket è in tutte e due');
+  assert.match(Game.parseCommand(state, 'fallo del 7 basket', 0).error, /tutte e due le squadre: di' anche la squadra/, 'Basket è in tutte e due');
 });

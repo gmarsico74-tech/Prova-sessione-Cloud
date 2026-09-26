@@ -42,22 +42,43 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
 - **Comandi vocali**, da accendere in Impostazioni (accendono anche i giocatori). In fondo allo schermo restano due
   pulsanti grandi: il cronometro e il microfono. Si tiene premuto il microfono, si parla, si lascia: il tabellone esegue
   il comando e lo conferma con un bip acuto, o con due bip bassi e il motivo scritto se non ha capito, e sul telefono
-  Android anche con una vibrazione. Si dicono canestri e falli: «canestro del 25», «canestro da 3 del 25 PC52»,
-  «tripla di Rossi», «tiro libero del 7», «2 liberi del 7 ospiti», «fallo del 12», «canestro da 2 ospiti» (alla squadra,
-  senza giocatore), «annulla». Il canestro senza valore vale 2; il giocatore si dice con il numero o con il nome.
-  La squadra si dice con il suo nome, oppure «casa» e «ospiti», e serve solo se il numero c'è in tutte e due le squadre
-  o se non c'è ancora: allora il giocatore viene aggiunto (e «annulla» lo toglie di nuovo). Tiri sbagliati, rimbalzi,
-  assist, palle recuperate e perse, stoppate e falli subiti vengono riconosciuti ma non ancora segnati: arriveranno
-  con lo scout. Con un telecomando Bluetooth per presentazioni o per selfie il microfono si tiene premuto anche con
-  i tasti Invio o Pagina giù, e Pagina su avvia e ferma il cronometro.
-  Funziona con Chrome su Android (che capisce la voce via internet) e con Safari su iPhone e iPad;
+  Android anche con una vibrazione. Si dicono:
+  - canestri e falli: «canestro del 25», «canestro da 3 del 25 PC52», «tripla di Rossi», «tiro libero del 7»,
+    «2 liberi del 7 ospiti», «fallo del 12», «canestro da 2 ospiti» (alla squadra, senza giocatore);
+  - chi è in campo: «quintetto 4 7 9 12 25 PC52 inizio del primo quarto», e i cambi «entra il 12, esce il 7»,
+    anche più di uno insieme: «entrano 12 e 14, escono 7 e 9»;
+  - «annulla», che toglie l'ultima azione.
+
+  Il canestro senza valore vale 2; il giocatore si dice con il numero o con il nome. La squadra si dice con il suo nome
+  (basta anche una parola che l'altra non ha), oppure «casa» e «ospiti», e serve solo se il numero c'è in tutte e due
+  le squadre o se non c'è ancora: allora il giocatore viene aggiunto, e «annulla» lo toglie di nuovo. In un cambio la
+  squadra si capisce da chi esce. Tiri sbagliati, rimbalzi, assist, palle recuperate e perse, stoppate e falli subiti
+  vengono riconosciuti ma non ancora segnati: arriveranno con lo scout. Con un telecomando Bluetooth per presentazioni
+  o per selfie il microfono si tiene premuto anche con i tasti Invio o Pagina giù, e Pagina su avvia e ferma il
+  cronometro. Funziona con Chrome su Android (che capisce la voce via internet) e con Safari su iPhone e iPad;
   la prima volta il browser chiede il permesso di usare il microfono.
-- **Tabellino**: i punti di ogni periodo e, per ogni giocatore, punti, tiri liberi segnati (TL), canestri da 2 (T2),
-  canestri da 3 (T3) e falli, con una riga per quello segnato alla squadra senza giocatore. «Pubblica tabellino» crea
-  un link alla pagina [tabellino.html](tabellino.html) che chiunque può aprire, per esempio dal gruppo WhatsApp:
-  mostra il tabellino com'è in quel momento, con giorno e stato della partita («Q3 4:12», «Fine Q2», «Finale»).
-- **File per il video**: scarica un file con tutte le azioni, gli avvii e le fermate del cronometro e il tabellino alla
-  fine di ogni periodo, ciascuno con l'ora vera, da dare al montatore insieme al video della partita (vedi sotto).
+- **Il tempo delle azioni** è sempre quello del tabellone, periodo e minuti, mai l'ora del giorno. In Impostazioni
+  si sceglie da dove viene:
+  - **dal cronometro di questo tabellone**: si avvia e si ferma il cronometro, e ogni azione prende il tempo che
+    segnava quando si è premuto il microfono;
+  - **detto a voce**, leggendo il tabellone della partita o del video: il cronometro qui resta fermo e ogni comando
+    dice anche il tempo, per esempio «tiro da 3 di Marsico, 2 minuti e 26 secondi del terzo quarto». Serve per le
+    partite segnate dal vivo senza cronometro e per quelle segnate a casa guardando il video. Il tabellone mostra il
+    punto più avanti a cui si è arrivati, così falli di squadra, bonus e timeout sono quelli del periodo giusto.
+
+  Il tempo si dice così: «2 minuti e 26 secondi del terzo quarto», «terzo quarto, 2 e 26», «al 2 e 26», «45 secondi»,
+  «inizio del secondo quarto», «primo supplementare». Il periodo si può lasciare fuori: vale quello del tabellone.
+  Anche con il tempo dal cronometro si può dire un tempo, e allora vale quello detto.
+- **Minuti in campo**: si contano dal primo quintetto detto, con i cambi; chi è in campo alla fine di un periodo si
+  intende in campo anche all'inizio del successivo, finché non si dice un cambio o un nuovo quintetto. Chi è in campo
+  ha il numero in verde.
+- **Tabellino**: i punti di ogni periodo e, per ogni giocatore, minuti (MIN, se è stato detto il quintetto), punti
+  (PT), tiri liberi segnati (TL), canestri da 2 (T2), canestri da 3 (T3) e falli (F), con una riga per quello segnato
+  alla squadra senza giocatore. «Pubblica tabellino» crea un link alla pagina [tabellino.html](tabellino.html) che
+  chiunque può aprire, per esempio dal gruppo WhatsApp: mostra il tabellino com'è in quel momento, con il giorno della
+  partita (si cambia in Impostazioni, se non è oggi) e il punto della partita («Q3 4:12», «Fine Q2», «Finale»).
+- **File per il video**: scarica un file con tutte le azioni, i quintetti e i cambi, e il tabellino alla fine di ogni
+  periodo, tutto agganciato al tempo del tabellone, da dare al montatore insieme al video della partita (vedi sotto).
 - La partita **resta salvata** nel browser: ricaricando la pagina si riprende da dove si era.
 - **Schermo intero** con il pulsante in alto a destra, comodo su un tablet a bordo campo; si esce con lo stesso
   pulsante o con Esc. Sull'iPhone il browser non lo permette e il pulsante non compare.
@@ -75,17 +96,15 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
 «File per il video» scarica `partita_<casa>_<ospiti>_<giorno>.json`, testo in formato JSON con:
 
 - `squadre`: nome e giocatori (numero e nome) di casa e ospiti;
-- `cronometro`: ogni avvio e fermata, con il motivo quando c'è (fine periodo, timeout, 24 secondi);
-- `azioni`: canestri, falli e timeout con periodo, tempo, squadra, numero e nome del giocatore, punteggio dopo l'azione
-  e la `scritta` pronta per la sovrimpressione («Canestro da 2 · #25 Rossi», «Fallo · #7 Bianchi (3°)»).
-  Le azioni corrette con «Correggi» non ci sono;
-- `fine_periodi`: per ogni periodo finito, l'ora della sirena, il punteggio e il tabellino fino a quel momento;
+- `azioni`, in ordine di tempo: canestri, falli, timeout, quintetti e cambi, con squadra, numero e nome del giocatore,
+  punteggio dopo l'azione e la `scritta` pronta per la sovrimpressione («Canestro da 2 · #25 Rossi»,
+  «Fallo · #7 Bianchi (3°)», «Entra #14 Gialli · esce #7 Bianchi»). Le azioni corrette con «Correggi» non ci sono;
+- `fine_periodi`: per ogni periodo finito, il punteggio e il tabellino fino a quel momento, minuti compresi;
 - `tabellino`: il tabellino al momento in cui si scarica il file.
 
-Ogni voce ha l'ora vera in due forme: `ora` leggibile e `ms`, millisecondi dal 1970, comodi per i calcoli.
-Il primo avvio del cronometro è la palla a due: se nel girato la palla a due cade al secondo P, un momento del file
-si trova al secondo P + (ms − ms del primo avvio) / 1000. Con i comandi vocali l'ora di un'azione è quella in cui si
-è premuto il microfono, quindi un paio di secondi dopo il canestro vero.
+Ogni voce è agganciata al tempo del tabellone, non all'ora: `periodo` («Q3»), `numero_periodo` (3), `tempo` come si
+legge sul tabellone («2:26», e nell'ultimo minuto «45.3») e `ms_restanti`, i millisecondi che mancano alla fine del
+periodo. Nel video un'azione si ritrova leggendo il tabellone inquadrato; la fine di ogni periodo è a 0:00.
 
 ## File
 
