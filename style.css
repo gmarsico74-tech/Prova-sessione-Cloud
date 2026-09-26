@@ -88,6 +88,14 @@ input:focus-visible {
   margin-left: auto;
 }
 
+.icon {
+  padding: 0 12px;
+}
+
+.icon svg {
+  display: block;
+}
+
 /* Griglia del tabellone */
 
 .board {
@@ -282,7 +290,7 @@ input:focus-visible {
 .shot {
   min-width: 3ch;
   font-family: var(--digits);
-  font-size: clamp(36px, 5vw, 52px);
+  font-size: clamp(52px, 8vw, 80px);
   font-weight: 700;
   line-height: 1;
   color: var(--shot);
@@ -408,5 +416,9 @@ input:focus-visible {
 @media (max-width: 430px) {
   .topbar h1 {
     display: none;
+  }
+
+  .topbar-actions button {
+    padding: 0 10px;
   }
 }

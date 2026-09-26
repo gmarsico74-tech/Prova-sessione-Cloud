@@ -21,6 +21,8 @@ Una pagina sola, senza installare nulla e senza connessione.
 - **Cronaca** di tutte le azioni con periodo, tempo e punteggio.
 - **Annulla** l'ultima azione, anche con Ctrl+Z; la barra spaziatrice avvia e ferma il cronometro.
 - La partita **resta salvata** nel browser: ricaricando la pagina si riprende da dove si era.
+- **Schermo intero** con il pulsante in alto a destra, comodo su un tablet a bordo campo; si esce con lo stesso
+  pulsante o con Esc. Sull'iPhone il browser non lo permette e il pulsante non compare.
 
 ## Regole applicate (regolamento FIBA)
 
