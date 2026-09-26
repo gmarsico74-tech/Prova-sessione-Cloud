@@ -12,6 +12,13 @@ const DEFAULT_NAMES = { home: 'PC52', away: 'OSPITI' };
 const $ = (selector, el = document) => el.querySelector(selector);
 const clockEl = $('#clock');
 const shotEl = $('#shot');
+const talkBtn = $('#talk');
+const voiceStatus = $('#voice-status');
+
+// Tasti di un telecomando Bluetooth (per presentazioni o per selfie) con i comandi vocali accesi:
+// tenuti giù aprono il microfono, oppure avviano e fermano il cronometro.
+const TALK_KEYS = ['Enter', 'PageDown'];
+const CLOCK_KEYS = ['PageUp'];
 
 let state = load();
 let library = loadLibrary();
@@ -26,6 +33,9 @@ function load() {
     if (saved && Array.isArray(saved.events) && saved.clock && saved.names) {
       saved.clock.shotMs ??= Game.SHOT_MS; // partite salvate prima dei 24 secondi
       saved.settings ??= { playerMode: false, friendly: false }; // e prima dei giocatori
+      saved.settings.shotClock ??= false; // e prima che i 24 secondi fossero facoltativi
+      saved.settings.voice ??= false; // e prima dei comandi vocali
+      saved.clockLog ??= []; // e prima del file per il video
       saved.rosters ??= { home: [], away: [] };
       saved.playerNames ??= { home: {}, away: {} }; // e prima dei nomi
       saved.origins ??= { home: null, away: null }; // e prima di «Modifica»
@@ -71,6 +81,11 @@ function update() {
 function render() {
   const { events, period } = state;
   document.body.classList.toggle('player-mode', state.settings.playerMode);
+  document.body.classList.toggle('voice-mode', state.settings.voice);
+  $('.shot-row').hidden = !state.settings.shotClock;
+  $('#voice-dock').hidden = !state.settings.voice;
+  $('#dock-score').textContent =
+    `${state.names.home} ${Game.score(events, 'home')} – ${Game.score(events, 'away')} ${state.names.away}`;
   for (const team of TEAMS) {
     const panel = $(`[data-team="${team}"]`);
     const fix = correcting[team];
@@ -102,6 +117,7 @@ function render() {
   $('[data-action="undo"]').disabled = events.length === 0;
   renderClock();
   renderLog();
+  Tabellino.render($('#box'), Game.boxScore(state));
   renderSettings();
 }
 
@@ -177,7 +193,13 @@ function playerButton(action, text, label, disabled, pts) {
 
 function renderSettings() {
   const { settings, rosters } = state;
+  $('#shot-clock').checked = settings.shotClock;
   $('#player-mode').checked = settings.playerMode;
+  $('#voice-mode').checked = settings.voice;
+  $('#voice-help').hidden = !settings.voice;
+  $('#voice-support').textContent = Voice.supported
+    ? ''
+    : 'Questo browser non capisce la voce: su Android usa Chrome, su iPhone e iPad Safari.';
   $('#friendly').checked = settings.friendly;
   $('#roster-editor').hidden = !settings.playerMode;
   const max = Game.maxPlayers(state);
@@ -282,22 +304,66 @@ function shareLink() {
   return `${base}${SHARE_PREFIX}${Game.encodeLibrary(library)}`;
 }
 
-async function shareTeams() {
-  const url = shareLink();
-  const note = $('#share-note');
+// Manda un link con la condivisione del telefono; dove non c'è lo copia, e se non si può lo mostra da copiare.
+async function shareUrl(url, { title, text, note, copied, ask }) {
   try {
     if (navigator.share) {
-      const text = 'Apri il link per aggiungere le squadre al tabellone.';
-      await navigator.share({ title: 'Squadre del tabellone', text, url });
+      await navigator.share({ title, text, url });
       note.textContent = '';
       return;
     }
     await navigator.clipboard.writeText(url);
-    note.textContent = "Link copiato: incollalo in un messaggio a te stesso e aprilo sull'altro dispositivo.";
+    note.textContent = copied;
   } catch (err) {
     if (err?.name === 'AbortError') return; // condivisione annullata
-    prompt("Copia questo link e aprilo sull'altro dispositivo:", url);
+    prompt(ask, url);
   }
+}
+
+function shareTeams() {
+  shareUrl(shareLink(), {
+    title: 'Squadre del tabellone',
+    text: 'Apri il link per aggiungere le squadre al tabellone.',
+    note: $('#share-note'),
+    copied: "Link copiato: incollalo in un messaggio a te stesso e aprilo sull'altro dispositivo.",
+    ask: "Copia questo link e aprilo sull'altro dispositivo:",
+  });
+}
+
+// Il tabellino com'è adesso, dentro un link alla pagina tabellino.html che chiunque può aprire.
+function publishBox() {
+  const now = Date.now();
+  const status = Game.gameStatus(state, now);
+  const code = Game.encodeBox(Game.boxScore(state), { date: Game.gameDate(state, now), status });
+  const page = location.protocol.startsWith('http') ? new URL('tabellino.html', location.href) : new URL('tabellino.html', SITE_URL);
+  page.hash = code;
+  const { home, away } = state.names;
+  const result = `${home} ${Game.score(state.events, 'home')} – ${Game.score(state.events, 'away')} ${away}`;
+  shareUrl(page.href, {
+    title: `Tabellino ${result}`,
+    text: `${result} · ${status}`,
+    note: $('#box-note'),
+    copied: 'Link del tabellino copiato: incollalo dove vuoi pubblicarlo, per esempio nel gruppo della squadra.',
+    ask: 'Copia il link del tabellino:',
+  });
+}
+
+// Il file per il montatore: azioni, cronometro e tabellini con l'ora vera, da unire al video della partita.
+function downloadVideoFile() {
+  const now = Date.now();
+  const name = Game.videoFileName(state, now);
+  const blob = new Blob([JSON.stringify(Game.videoFile(state, now), null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+  $('#box-note').textContent =
+    state.clockLog.length === 0
+      ? `Scaricato «${name}», ma il cronometro non è mai partito: senza la palla a due il file non si allinea al video.`
+      : `Scaricato «${name}»: mandalo sul Mac insieme al video della partita.`;
 }
 
 // Aperto un link con le squadre, le aggiunge a quelle salvate dopo averlo chiesto.
@@ -334,6 +400,7 @@ function renderClock() {
   const ms = Game.remainingMs(state.clock, now);
   const running = state.clock.running;
   clockEl.textContent = Game.formatClock(ms);
+  $('#dock-clock').textContent = `${Game.periodLabel(state.period)} ${Game.formatClock(ms)}`;
   clockEl.classList.toggle('last-minute', ms < 60000);
   clockEl.classList.toggle('expired', ms === 0);
   const shotMs = Game.shotRemainingMs(state.clock, now);
@@ -341,10 +408,11 @@ function renderClock() {
   shotEl.textContent = shotOff ? '—' : Game.formatShot(shotMs);
   shotEl.classList.toggle('off', shotOff);
   shotEl.classList.toggle('expired', !shotOff && shotMs === 0);
-  const toggle = $('[data-action="toggle-clock"]');
-  toggle.textContent = running ? '⏸ Pausa' : '▶ Avvia';
-  toggle.classList.toggle('running', running);
-  toggle.disabled = !running && ms === 0;
+  for (const toggle of document.querySelectorAll('[data-action="toggle-clock"]')) {
+    toggle.textContent = running ? '⏸ Pausa' : '▶ Avvia';
+    toggle.classList.toggle('running', running);
+    toggle.disabled = !running && ms === 0;
+  }
   for (const btn of document.querySelectorAll('[data-action="adjust"]')) btn.disabled = running;
 }
 
@@ -382,12 +450,8 @@ function cell(className, text) {
 }
 
 function toggleClock(now) {
-  if (state.clock.running) {
-    Game.pauseClock(state.clock, now);
-  } else {
-    unlockAudio();
-    Game.startClock(state.clock, now);
-  }
+  if (!state.clock.running) unlockAudio();
+  Game.toggleClock(state, now);
 }
 
 // I browser suonano solo dopo un gesto dell'utente: l'audio si prepara al clic su Avvia.
@@ -400,17 +464,82 @@ function unlockAudio() {
   }
 }
 
-function buzzer(seconds) {
+function tone(frequency, delay, seconds) {
   if (!audioCtx) return;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.type = 'square';
-  osc.frequency.value = 220;
+  osc.frequency.value = frequency;
   gain.gain.value = 0.15;
   osc.connect(gain).connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + seconds);
+  osc.start(audioCtx.currentTime + delay);
+  osc.stop(audioCtx.currentTime + delay + seconds);
 }
+
+function buzzer(seconds) {
+  tone(220, 0, seconds);
+}
+
+// ——— Comandi vocali ———
+// Si guarda la partita, non lo schermo: l'esito arriva con un suono (acuto se capito, due bassi se no)
+// e, dove il telefono lo permette, con una vibrazione.
+
+const talk = Voice.supported
+  ? Voice.createTalk({
+      onListening: () => showVoice('listening', 'Ti ascolto…'),
+      onHeard: (text) => showVoice('listening', `«${text}»`),
+      onResult: voiceResult,
+    })
+  : null;
+
+function showVoice(kind, message, heard) {
+  voiceStatus.className = `voice-status ${kind}`;
+  const lines = [cell('voice-message', message)];
+  if (heard) lines.push(cell('voice-heard', `Ho sentito «${heard}»`));
+  voiceStatus.replaceChildren(...lines);
+}
+
+function voiceResult({ at, heard, error }) {
+  talkBtn.classList.remove('listening');
+  const outcome = heard.length
+    ? Game.voiceCommand(state, at, heard)
+    : { ok: false, message: Voice.explain(error), heard: '' };
+  showVoice(outcome.ok ? 'ok' : 'ko', `${outcome.ok ? '✓' : '✗'} ${outcome.message}`, outcome.ok ? '' : outcome.heard);
+  if (outcome.ok) {
+    tone(880, 0, 0.08);
+    navigator.vibrate?.(40);
+    correcting.home = correcting.away = false;
+    update();
+  } else {
+    tone(196, 0, 0.12);
+    tone(196, 0.2, 0.12);
+    navigator.vibrate?.([80, 60, 80]);
+  }
+}
+
+function pressTalk() {
+  if (!state.settings.voice) return;
+  unlockAudio();
+  if (!talk) {
+    showVoice('ko', '✗ Questo browser non capisce la voce: su Android usa Chrome, su iPhone e iPad Safari.');
+    return;
+  }
+  talkBtn.classList.add('listening');
+  showVoice('listening', 'Apro il microfono…');
+  talk.press(Date.now());
+}
+
+function releaseTalk() {
+  talk?.release();
+}
+
+talkBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  talkBtn.setPointerCapture?.(e.pointerId);
+  pressTalk();
+});
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) talkBtn.addEventListener(type, releaseTalk);
+talkBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // A schermo intero il tabellone si legge da lontano, per esempio da un tablet a bordo campo.
 function toggleFullscreen() {
@@ -423,7 +552,7 @@ function toggleFullscreen() {
 }
 
 function tick() {
-  const expired = Game.checkExpiry(state.clock, Date.now());
+  const expired = Game.expire(state, Date.now());
   if (expired) {
     buzzer(expired === 'period' ? 1.2 : 0.6);
     update();
@@ -473,13 +602,13 @@ document.addEventListener('click', (e) => {
       toggleFullscreen();
       break;
     case 'reset-clock':
-      Game.goToPeriod(state, state.period);
+      Game.goToPeriod(state, state.period, now);
       break;
     case 'prev-period':
-      Game.goToPeriod(state, state.period - 1);
+      Game.goToPeriod(state, state.period - 1, now);
       break;
     case 'next-period':
-      Game.goToPeriod(state, state.period + 1);
+      Game.goToPeriod(state, state.period + 1, now);
       break;
     case 'remove-player': {
       const box = btn.closest('[data-roster]');
@@ -538,6 +667,12 @@ document.addEventListener('click', (e) => {
     case 'share-teams':
       shareTeams();
       return;
+    case 'publish-box':
+      publishBox();
+      return;
+    case 'video-file':
+      downloadVideoFile();
+      return;
     case 'delete-team': {
       const name = btn.closest('[data-saved]').dataset.saved;
       if (!confirm(`Elimino la squadra salvata «${name}»? La partita in corso non cambia.`)) return;
@@ -558,7 +693,15 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('keydown', (e) => {
   if (e.target.closest('input')) return;
-  if (e.code === 'Space') {
+  if (state.settings.voice && TALK_KEYS.includes(e.key)) {
+    e.preventDefault();
+    if (!e.repeat) pressTalk();
+  } else if (state.settings.voice && CLOCK_KEYS.includes(e.key)) {
+    e.preventDefault();
+    if (e.repeat) return;
+    toggleClock(Date.now());
+    update();
+  } else if (e.code === 'Space') {
     e.preventDefault();
     toggleClock(Date.now());
     update();
@@ -599,8 +742,30 @@ for (const input of document.querySelectorAll('.roster-team-name')) {
   input.addEventListener('blur', render);
 }
 
+document.addEventListener('keyup', (e) => {
+  if (state.settings.voice && TALK_KEYS.includes(e.key)) {
+    e.preventDefault();
+    releaseTalk();
+  }
+});
+
+$('#shot-clock').addEventListener('change', (e) => {
+  state.settings.shotClock = e.target.checked;
+  if (e.target.checked) Game.resetShot(state.clock, Date.now(), Game.SHOT_MS);
+  update();
+});
+
+// I comandi vocali lavorano sui numeri di maglia: accenderli accende anche i giocatori, spegnere i giocatori li spegne.
 $('#player-mode').addEventListener('change', (e) => {
   state.settings.playerMode = e.target.checked;
+  if (!e.target.checked) state.settings.voice = false;
+  correcting.home = correcting.away = false;
+  update();
+});
+
+$('#voice-mode').addEventListener('change', (e) => {
+  state.settings.voice = e.target.checked;
+  if (e.target.checked) state.settings.playerMode = true;
   correcting.home = correcting.away = false;
   update();
 });

@@ -25,10 +25,11 @@
   }
 
   // Una nuova partita riparte da zero ma tiene impostazioni e numeri di maglia di quella di prima.
+  // I 24 secondi sono facoltativi: nelle giovanili spesso il tabellone dell'azione non c'è.
   function newGame(names, setup = {}) {
     return {
       names: { ...names },
-      settings: { playerMode: false, friendly: false, ...setup.settings },
+      settings: { playerMode: false, friendly: false, shotClock: false, voice: false, ...setup.settings },
       rosters: { home: [...(setup.rosters?.home ?? [])], away: [...(setup.rosters?.away ?? [])] },
       playerNames: { home: { ...setup.playerNames?.home }, away: { ...setup.playerNames?.away } },
       // da quale squadra salvata vengono i giocatori di ciascun lato, per aggiornarla o rinominarla
@@ -36,6 +37,7 @@
       period: 1,
       clock: freshClock(1),
       events: [],
+      clockLog: [], // avvii e fermate del cronometro con l'ora vera, per ritrovare le azioni nel video
     };
   }
 
@@ -154,18 +156,45 @@
   }
 
   // Ferma tutto quando scade il periodo o l'azione e dice quale dei due è scaduto.
-  // I 24 secondi fermano il gioco nell'istante esatto della scadenza, non al controllo successivo.
-  function checkExpiry(clock, now) {
+  // I 24 secondi fermano il gioco nell'istante esatto della scadenza, non al controllo successivo;
+  // con withShot falso (24 secondi spenti) conta solo il periodo.
+  function checkExpiry(clock, now, withShot = true) {
     if (!clock.running) return null;
     if (remainingMs(clock, now) === 0) {
       pauseClock(clock, now);
       return 'period';
     }
-    if (!shotClockOff(clock, now) && shotRemainingMs(clock, now) === 0) {
+    if (withShot && !shotClockOff(clock, now) && shotRemainingMs(clock, now) === 0) {
       pauseClock(clock, clock.startedAt + clock.shotMs);
       return 'shot';
     }
     return null;
+  }
+
+  // Ogni avvio e fermata del cronometro finisce nel registro con l'ora vera: il primo avvio è la palla a due,
+  // e da lì si ritrova nel video il momento di ogni azione.
+  function logClock(state, at, type, reason) {
+    const entry = { type, at, period: state.period, clockMs: state.clock.remainingMs };
+    if (reason) entry.reason = reason;
+    state.clockLog.push(entry);
+  }
+
+  function toggleClock(state, now) {
+    if (state.clock.running) {
+      pauseClock(state.clock, now);
+      logClock(state, now, 'stop');
+      return;
+    }
+    startClock(state.clock, now);
+    if (state.clock.running) logClock(state, now, 'start');
+  }
+
+  // Il controllo di ogni decimo di secondo: se è scaduto qualcosa annota l'istante esatto della scadenza.
+  function expire(state, now) {
+    const { startedAt, remainingMs: left, shotMs } = state.clock;
+    const reason = checkExpiry(state.clock, now, state.settings.shotClock);
+    if (reason) logClock(state, startedAt + (reason === 'period' ? left : shotMs), 'stop', reason);
+    return reason;
   }
 
   function adjustClock(state, deltaMs) {
@@ -175,14 +204,19 @@
   }
 
   // Cambiare periodo (o ripartire da capo in quello attuale) ferma e riempie i cronometri.
-  function goToPeriod(state, period) {
+  function goToPeriod(state, period, now) {
     if (period < 1) return;
+    if (state.clock.running && now !== undefined) {
+      pauseClock(state.clock, now);
+      logClock(state, now, 'stop');
+    }
     state.period = period;
     state.clock = freshClock(period);
   }
 
+  // Ogni azione tiene periodo e tempo del cronometro, e l'ora vera (at) per metterla al punto giusto del video.
   function record(state, now, event) {
-    state.events.push({ ...event, period: state.period, clockMs: remainingMs(state.clock, now) });
+    state.events.push({ ...event, period: state.period, clockMs: remainingMs(state.clock, now), at: now });
   }
 
   // Senza giocatore i punti e i falli vanno solo alla squadra.
@@ -220,17 +254,24 @@
   // Il timeout ferma il cronometro; se la squadra non ne ha più non succede nulla.
   function takeTimeout(state, now, team) {
     if (timeoutsLeft(state.events, team, state.period) === 0) return false;
-    pauseClock(state.clock, now);
+    if (state.clock.running) {
+      pauseClock(state.clock, now);
+      logClock(state, now, 'stop', 'timeout');
+    }
     record(state, now, { type: 'timeout', team });
     return true;
   }
 
   // Se annullare ridà punti o falli a un giocatore tolto dall'elenco, il giocatore ci rientra.
+  // Se toglie l'azione con cui la voce aveva aggiunto un giocatore nuovo (added) e lui resta a zero, esce.
   function undo(state) {
     const e = state.events.pop();
     if (e?.player === undefined) return;
     const roster = state.rosters[e.team];
-    if (!roster.includes(e.player) && !canRemovePlayer(state.events, e.team, e.player)) {
+    const empty = canRemovePlayer(state.events, e.team, e.player);
+    if (e.added && empty) {
+      removePlayer(state, e.team, e.player);
+    } else if (!roster.includes(e.player) && !empty) {
       roster.push(e.player);
       roster.sort((a, b) => a - b);
     }
@@ -313,25 +354,33 @@
     return incoming.reduce(storeTeam, library);
   }
 
-  // Le squadre salvate viaggiano da un dispositivo all'altro dentro un link: testo compatto in base64,
+  // Squadre salvate e tabellini viaggiano dentro un link: testo compatto in base64,
   // senza i caratteri che un link o un messaggio potrebbero rovinare.
   const SHARE_VERSION = '1';
 
-  function encodeLibrary(library) {
-    const compact = library.map((t) => [t.name, t.players.map((p) => (p.name ? [p.number, p.name] : [p.number]))]);
+  function toLinkText(value) {
     let binary = '';
-    for (const byte of new TextEncoder().encode(JSON.stringify(compact))) binary += String.fromCharCode(byte);
+    for (const byte of new TextEncoder().encode(JSON.stringify(value))) binary += String.fromCharCode(byte);
     const base64 = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     return `${SHARE_VERSION}.${base64}`;
+  }
+
+  // Il contenuto del link; se è rovinato o di un'altra versione lancia un errore.
+  function fromLinkText(text) {
+    const [version, data] = String(text).split('.');
+    if (version !== SHARE_VERSION || !data) throw new Error('link non valido');
+    const binary = atob(data.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0))));
+  }
+
+  function encodeLibrary(library) {
+    return toLinkText(library.map((t) => [t.name, t.players.map((p) => (p.name ? [p.number, p.name] : [p.number]))]));
   }
 
   // Le squadre contenute nel link, oppure null se il link è rovinato o non viene dal tabellone.
   function decodeLibrary(text) {
     try {
-      const [version, data] = String(text).split('.');
-      if (version !== SHARE_VERSION || !data) return null;
-      const binary = atob(data.replace(/-/g, '+').replace(/_/g, '/'));
-      const compact = JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0))));
+      const compact = fromLinkText(text);
       if (!Array.isArray(compact) || compact.length === 0) return null;
       const teams = compact.map(decodeTeam);
       return teams.every(Boolean) ? teams : null;
@@ -400,6 +449,481 @@
     return null;
   }
 
+  // ——— Tabellino ———
+
+  // La riga di un giocatore (o della squadra, senza player): punti, canestri segnati
+  // [tiri liberi, da 2, da 3] e falli. Le correzioni contano in meno.
+  function statLine(events, team, player) {
+    const line = { pts: 0, made: [0, 0, 0], fouls: 0 };
+    for (const e of events) {
+      if (e.team !== team || e.player !== player) continue;
+      if (e.type === 'score') {
+        line.pts += e.pts;
+        line.made[Math.abs(e.pts) - 1] += Math.sign(e.pts);
+      } else if (e.type === 'foul') {
+        line.fouls += foulValue(e);
+      }
+    }
+    return line;
+  }
+
+  // Il tabellino fino alla fine del periodo upTo (senza, fino a ora): i punti di ogni periodo e, per squadra,
+  // una riga per giocatore più la riga della squadra per quello che è stato segnato senza giocatore.
+  function boxScore(state, upTo = Infinity) {
+    const events = state.events.filter((e) => e.period <= upTo);
+    const last = Math.min(upTo, Math.max(state.period, ...events.map((e) => e.period)));
+    const periods = [];
+    for (let period = 1; period <= last; period++) {
+      const inPeriod = events.filter((e) => e.period === period);
+      periods.push({ period, home: score(inPeriod, 'home'), away: score(inPeriod, 'away') });
+    }
+    const teams = {};
+    for (const team of ['home', 'away']) {
+      const numbers = new Set(state.rosters[team]);
+      for (const e of events) if (e.team === team && e.player !== undefined) numbers.add(e.player);
+      teams[team] = {
+        name: state.names[team],
+        players: [...numbers]
+          .sort((a, b) => a - b)
+          .map((number) => ({ number, name: state.playerNames[team][number] ?? '', ...statLine(events, team, number) })),
+        team: statLine(events, team, undefined),
+      };
+    }
+    return { periods, teams };
+  }
+
+  function boxTotals(side) {
+    return [...side.players, side.team].reduce(
+      (sum, line) => ({
+        pts: sum.pts + line.pts,
+        made: sum.made.map((n, i) => n + line.made[i]),
+        fouls: sum.fouls + line.fouls,
+      }),
+      { pts: 0, made: [0, 0, 0], fouls: 0 }
+    );
+  }
+
+  function dayOf(at) {
+    const d = new Date(at);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  // Il giorno della partita: quello della palla a due, o della prima azione, o di oggi.
+  function gameDate(state, now) {
+    return dayOf(state.clockLog[0]?.at ?? state.events.find((e) => e.at !== undefined)?.at ?? now);
+  }
+
+  // Com'è la partita: «Finale» a tempo scaduto dal quarto periodo in poi senza parità,
+  // «Fine Q2» a tempo scaduto negli altri casi, altrimenti periodo e tempo («Q3 4:12»).
+  function gameStatus(state, now) {
+    const ms = remainingMs(state.clock, now);
+    const tied = score(state.events, 'home') === score(state.events, 'away');
+    if (ms > 0) return `${periodLabel(state.period)} ${formatClock(ms)}`;
+    return state.period >= 4 && !tied ? 'Finale' : `Fine ${periodLabel(state.period)}`;
+  }
+
+  // Il tabellino viaggia in un link, come le squadre: giorno e stato li aggiunge chi lo pubblica.
+  function encodeBox(box, info) {
+    const line = (l) => [l.pts, ...l.made, l.fouls];
+    return toLinkText([
+      info.date,
+      info.status,
+      box.periods.map((p) => [p.home, p.away]),
+      ['home', 'away'].map((team) => {
+        const side = box.teams[team];
+        return [side.name, side.players.map((p) => [p.number, p.name, ...line(p)]), line(side.team)];
+      }),
+    ]);
+  }
+
+  // Il tabellino contenuto nel link, oppure null se il link è rovinato o non viene dal tabellone.
+  function decodeBox(text) {
+    try {
+      const [date, status, periods, sides] = fromLinkText(text);
+      const whole = (n) => Number.isInteger(n);
+      const line = (l) => {
+        if (!Array.isArray(l) || l.length !== 5 || !l.every(whole)) throw new Error('riga rovinata');
+        return { pts: l[0], made: l.slice(1, 4), fouls: l[4] };
+      };
+      if (typeof date !== 'string' || typeof status !== 'string' || sides.length !== 2) return null;
+      const teams = {};
+      ['home', 'away'].forEach((team, i) => {
+        const [name, players, own] = sides[i];
+        if (typeof name !== 'string' || players.length > 99) throw new Error('squadra rovinata');
+        teams[team] = {
+          name: name.slice(0, 14),
+          players: players.map(([number, playerName, ...rest]) => {
+            if (!whole(number) || number < 0 || number > 99 || typeof playerName !== 'string') {
+              throw new Error('giocatore rovinato');
+            }
+            return { number, name: playerName.slice(0, 20), ...line(rest) };
+          }),
+          team: line(own),
+        };
+      });
+      return {
+        date: date.slice(0, 10),
+        status: status.slice(0, 30),
+        periods: periods.map(([home, away], i) => {
+          if (!whole(home) || !whole(away)) throw new Error('periodo rovinato');
+          return { period: i + 1, home, away };
+        }),
+        teams,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // ——— Il file per il video ———
+
+  const SIDES = { home: 'casa', away: 'ospiti' };
+  const SHOT_NAMES = { 1: 'Tiro libero', 2: 'Canestro da 2', 3: 'Tripla' };
+  const STOP_REASONS = { period: 'fine periodo', shot: '24 secondi', timeout: 'timeout' };
+
+  // Le azioni rimaste valide dopo le correzioni: un meno toglie l'ultimo canestro uguale dello stesso
+  // giocatore, un fallo tolto l'ultimo fallo di quel giocatore in quel periodo. Una correzione che non
+  // trova un canestro uguale (un −2 a chi aveva segnato una tripla) resta, così i punteggi tornano.
+  function standingEvents(events) {
+    const kept = [];
+    for (const e of events) {
+      const minus = (e.type === 'score' && e.pts < 0) || (e.type === 'foul' && foulValue(e) < 0);
+      if (!minus) {
+        kept.push(e);
+        continue;
+      }
+      const cancels =
+        e.type === 'score'
+          ? (k) => k.type === 'score' && k.team === e.team && k.player === e.player && k.pts === -e.pts
+          : (k) =>
+              k.type === 'foul' && k.team === e.team && k.player === e.player && foulValue(k) > 0 && k.period === e.foulPeriod;
+      let i = kept.length - 1;
+      while (i >= 0 && !cancels(kept[i])) i--;
+      if (i >= 0) kept.splice(i, 1);
+      else kept.push(e);
+    }
+    return kept;
+  }
+
+  function boxForVideo(box) {
+    const line = (l) => ({ punti: l.pts, liberi: l.made[0], da2: l.made[1], da3: l.made[2], falli: l.fouls });
+    const sides = ['home', 'away'].map((team) => {
+      const side = box.teams[team];
+      return [
+        SIDES[team],
+        {
+          nome: side.name,
+          giocatori: side.players.map((p) => ({ numero: p.number, nome: p.name, ...line(p) })),
+          squadra: line(side.team),
+          totale: line(boxTotals(side)),
+        },
+      ];
+    });
+    return Object.fromEntries(sides);
+  }
+
+  // L'ora vera in due forme: leggibile (ora) e in millisecondi dal 1970 (ms), comoda per i calcoli.
+  function when(at) {
+    return at === undefined ? { ora: null, ms: null } : { ora: new Date(at).toISOString(), ms: at };
+  }
+
+  function actionText(e, who, playerFoulCount) {
+    if (e.type === 'timeout') return `Timeout ${who}`;
+    if (e.type === 'foul') return playerFoulCount ? `Fallo · ${who} (${playerFoulCount}°)` : `Fallo · ${who}`;
+    return e.pts > 0 ? `${SHOT_NAMES[e.pts]} · ${who}` : `Correzione ${e.pts} · ${who}`;
+  }
+
+  // Tutto quello che serve al montatore per scrivere in sovrimpressione chi segna e chi fa fallo, e alla fine
+  // di ogni periodo il tabellino. Ogni voce ha l'ora vera; il primo avvio del cronometro è la palla a due.
+  function videoFile(state, now) {
+    const standing = new Set(standingEvents(state.events));
+    const running = { home: 0, away: 0 };
+    const fouls = {};
+    const actions = [];
+    for (const e of state.events) {
+      const key = `${e.team} ${e.player}`;
+      if (e.type === 'score') running[e.team] += e.pts;
+      if (e.type === 'foul') fouls[key] = (fouls[key] ?? 0) + foulValue(e);
+      if (!standing.has(e)) continue;
+      const name = e.player === undefined ? '' : state.playerNames[e.team][e.player] ?? '';
+      const who = e.player === undefined ? state.names[e.team] : `#${e.player}${name ? ` ${name}` : ''}`;
+      const type = e.type === 'score' ? (e.pts > 0 ? 'canestro' : 'correzione') : e.type === 'foul' ? 'fallo' : 'timeout';
+      const action = {
+        ...when(e.at),
+        periodo: periodLabel(e.period),
+        tempo: formatClock(e.clockMs),
+        tipo: type,
+        squadra: SIDES[e.team],
+        nome_squadra: state.names[e.team],
+        numero: e.player ?? null,
+        giocatore: name,
+      };
+      if (e.type === 'score') action.punti = e.pts;
+      if (e.type === 'foul' && e.player !== undefined) action.falli_giocatore = fouls[key];
+      action.punteggio = { casa: running.home, ospiti: running.away };
+      action.scritta = actionText(e, who, action.falli_giocatore);
+      actions.push(action);
+    }
+    const periodEnds = [];
+    for (let period = 1; period <= state.period; period++) {
+      const stops = state.clockLog.filter((c) => c.period === period && c.type === 'stop');
+      const expired = stops.filter((c) => c.reason === 'period');
+      const end = expired[expired.length - 1] ?? (period < state.period ? stops[stops.length - 1] : undefined);
+      if (!end) continue;
+      const upTo = state.events.filter((e) => e.period <= period);
+      periodEnds.push({
+        periodo: periodLabel(period),
+        ...when(end.at),
+        punteggio: { casa: score(upTo, 'home'), ospiti: score(upTo, 'away') },
+        tabellino: boxForVideo(boxScore(state, period)),
+      });
+    }
+    const roster = (team) => ({
+      nome: state.names[team],
+      giocatori: state.rosters[team].map((number) => ({ numero: number, nome: state.playerNames[team][number] ?? '' })),
+    });
+    return {
+      formato: 'tabellone-basket-video',
+      versione: 1,
+      creato: new Date(now).toISOString(),
+      data_partita: gameDate(state, now),
+      sincronia:
+        'Il primo avvio del cronometro è la palla a due. Un momento del file si ritrova nel girato così: ' +
+        'secondi nel girato = palla a due nel girato + (ms − ms del primo avvio) / 1000.',
+      squadre: { casa: roster('home'), ospiti: roster('away') },
+      cronometro: state.clockLog.map((c) => ({
+        evento: c.type === 'start' ? 'avvio' : 'stop',
+        ...(c.reason ? { motivo: STOP_REASONS[c.reason] } : {}),
+        ...when(c.at),
+        periodo: periodLabel(c.period),
+        tempo: formatClock(c.clockMs),
+      })),
+      azioni: actions,
+      fine_periodi: periodEnds,
+      tabellino: boxForVideo(boxScore(state)),
+    };
+  }
+
+  function slug(name) {
+    const plain = String(name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    return plain.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'squadra';
+  }
+
+  function videoFileName(state, now) {
+    return `partita_${slug(state.names.home)}_${slug(state.names.away)}_${gameDate(state, now)}.json`;
+  }
+
+  // ——— Comandi a voce ———
+  // Il riconoscimento della voce consegna una frase («canestro da 2 del 25 PC52»): qui diventa un'azione.
+
+  const UNIT_WORDS = ['zero', 'uno', 'due', 'tre', 'quattro', 'cinque', 'sei', 'sette', 'otto', 'nove', 'dieci',
+    'undici', 'dodici', 'tredici', 'quattordici', 'quindici', 'sedici', 'diciassette', 'diciotto', 'diciannove'];
+  const TEN_WORDS = ['venti', 'trenta', 'quaranta', 'cinquanta', 'sessanta', 'settanta', 'ottanta', 'novanta'];
+
+  // I numeri detti a parole, da «zero» a «novantanove»: davanti a uno e otto le decine perdono la vocale.
+  const NUMBER_WORDS = new Map(UNIT_WORDS.map((w, n) => [w, n]));
+  TEN_WORDS.forEach((ten, i) => {
+    const tens = (i + 2) * 10;
+    NUMBER_WORDS.set(ten, tens);
+    for (let unit = 1; unit <= 9; unit++) {
+      NUMBER_WORDS.set((unit === 1 || unit === 8 ? ten.slice(0, -1) : ten) + UNIT_WORDS[unit], tens + unit);
+    }
+  });
+
+  // La frase in minuscolo, senza accenti né punteggiatura, con i numeri in cifre
+  // e le cifre staccate dalle lettere: «PC52, ventitré!» diventa «pc 52 23».
+  function speechWords(text) {
+    return String(text)
+      .toLocaleLowerCase('it')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/([a-z])(\d)/g, '$1 $2')
+      .replace(/(\d)([a-z])/g, '$1 $2')
+      .trim()
+      .split(' ')
+      .map((w) => (NUMBER_WORDS.has(w) ? String(NUMBER_WORDS.get(w)) : /^\d+$/.test(w) ? String(Number(w)) : w))
+      .join(' ');
+  }
+
+  // Le frasi si confrontano con uno spazio prima e dopo ogni parola: « canestro da 2 del 25 ».
+  const words = (pattern, flags) => new RegExp(` (?:${pattern})(?= )`, flags);
+
+  // Il nome della squadra si riconosce anche se il riconoscimento lo spezza o lo unisce: «pc 52», «p c 52», «pc52».
+  function teamPattern(name) {
+    const letters = speechWords(name).replace(/ /g, '');
+    return letters.length < 2 ? null : new RegExp(` ${[...letters].join(' ?')}(?= )`, 'g');
+  }
+
+  // Le parole del nome che l'altra squadra non ha: «Virtus Padova» si riconosce anche solo da «Virtus».
+  function distinctiveWords(state, team) {
+    const other = speechWords(state.names[team === 'home' ? 'away' : 'home']).split(' ');
+    return speechWords(state.names[team])
+      .split(' ')
+      .filter((w) => w.length >= 4 && !/^\d+$/.test(w) && !other.includes(w));
+  }
+
+  const SIDE_WORDS = { home: words('casa|locali', 'g'), away: words('ospiti|ospite|avversari|avversario', 'g') };
+  const UNDO_WORDS = words('annulla|cancella');
+  const FOUL_WORDS = words('fall[oi]');
+  const SCORE_WORDS = words('canestr\\w*|segn\\w*|tripl\\w*|bomb\\w*|liber[oi]|punt[oi]|schiacciat\\w*');
+  const NUMBER_MARK = /^(numero|n|nr|maglia)$/;
+
+  // Le voci dello scout che arriveranno dopo: intanto la voce le riconosce e non segna niente di sbagliato.
+  const LATER = [
+    [words('sbagli\\w*|errat\\w*|errore|padella'), 'I tiri sbagliati'],
+    [words('rimbalz\\w*'), 'I rimbalzi'],
+    [words('assist\\w*'), 'Gli assist'],
+    [words('recuper\\w*|rubat\\w*'), 'Le palle recuperate'],
+    [words('pers[aeo]'), 'Le palle perse'],
+    [words('stopp\\w*'), 'Le stoppate'],
+    [words('subit[oi]'), 'I falli subiti'],
+  ];
+
+  // Chi ha fatto l'azione: dal numero, cercato nella squadra detta o in tutte e due; un numero nuovo
+  // entra in squadra solo se la squadra è stata detta. Senza numero si cerca il nome; con la sola squadra
+  // l'azione va alla squadra, come i pulsanti senza giocatori.
+  function findPlayer(state, side, number, heard) {
+    const sides = side ? [side] : ['home', 'away'];
+    if (number !== undefined) {
+      const found = sides.filter((team) => state.rosters[team].includes(number));
+      if (found.length === 1) return { team: found[0], player: number };
+      if (found.length > 1) return { error: `Il ${number} c'è in tutte e due le squadre: di' anche la squadra.` };
+      if (!side) return { error: `Il ${number} non è in squadra: di' anche la squadra e lo aggiungo.` };
+      if (state.rosters[side].length >= maxPlayers(state)) {
+        return { error: `${state.names[side]} ha già ${maxPlayers(state)} giocatori: il ${number} non c'è.` };
+      }
+      return { team: side, player: number, newPlayer: true };
+    }
+    const said = new Set(heard.filter((w) => w.length >= 3));
+    const matches = [];
+    for (const team of sides) {
+      for (const n of state.rosters[team]) {
+        const name = state.playerNames[team][n];
+        if (name && speechWords(name).split(' ').some((w) => w.length >= 3 && said.has(w))) matches.push({ team, player: n });
+      }
+    }
+    if (matches.length === 1) return matches[0];
+    if (matches.length > 1) return { error: "Più giocatori con quel nome: di' il numero." };
+    if (side) return { team: side };
+    return { error: "Non ho capito chi: di' il numero o il nome del giocatore." };
+  }
+
+  // Una frase detta diventa un comando già controllato, oppure { error } con il motivo da mostrare.
+  function parseCommand(state, heard) {
+    let text = ` ${speechWords(heard)} `;
+    if (!text.trim()) return { error: 'Non ho sentito niente.' };
+    if (UNDO_WORDS.test(text)) return { type: 'undo' };
+    const sides = new Set();
+    for (const team of ['home', 'away']) {
+      const mark = () => {
+        sides.add(team);
+        return ' ';
+      };
+      const pattern = teamPattern(state.names[team]);
+      if (pattern) text = text.replace(pattern, mark);
+      text = text.replace(SIDE_WORDS[team], mark);
+    }
+    if (sides.size === 0) {
+      for (const team of ['home', 'away']) {
+        for (const w of distinctiveWords(state, team)) {
+          text = text.replace(words(w, 'g'), () => {
+            sides.add(team);
+            return ' ';
+          });
+        }
+      }
+    }
+    if (sides.size > 1) return { error: 'Ho sentito tutte e due le squadre: una per comando.' };
+    for (const [pattern, what] of LATER) {
+      if (pattern.test(text)) return { error: `${what} non si segnano ancora: arriveranno con lo scout.` };
+    }
+    const foul = FOUL_WORDS.test(text);
+    const scored = SCORE_WORDS.test(text);
+    if (foul && scored) return { error: 'Un comando per volta: prima il canestro, poi il fallo.' };
+    if (!foul && !scored) return { error: 'Non ho capito se è un canestro o un fallo.' };
+
+    let pts = 2;
+    let count = 1;
+    text = text.replace(/ ([123]) liber[oi](?= )/, (m, n) => {
+      count = Number(n);
+      return ' libero';
+    });
+    if (words('liber[oi]').test(text)) pts = 1;
+    if (words('tripl\\w*|bomb\\w*').test(text)) pts = 3;
+    text = text.replace(/ un punto(?= )/, () => {
+      pts = 1;
+      return ' ';
+    });
+    const value = (m, n) => {
+      pts = Number(n);
+      return ' ';
+    };
+    text = text.replace(/ da ([123])(?= )/, value).replace(/ ([123]) punt[oi](?= )/, value);
+
+    const tokens = text.trim().split(/\s+/);
+    const numbers = [];
+    tokens.forEach((w, i) => {
+      if (/^\d+$/.test(w)) numbers.push({ value: Number(w), marked: i > 0 && NUMBER_MARK.test(tokens[i - 1]) });
+    });
+    const marked = numbers.filter((n) => n.marked);
+    const picked = marked.length === 1 ? marked : numbers;
+    if (picked.length > 1) return { error: 'Ho sentito più numeri: un giocatore per comando.' };
+    const number = picked[0]?.value;
+    if (number > 99) return { error: `Il ${number} non è un numero di maglia.` };
+
+    const who = findPlayer(state, [...sides][0], number, tokens);
+    if (who.error) return who;
+    if (who.player !== undefined && playerFouls(state.events, who.team, who.player) >= PLAYER_FOUL_LIMIT) {
+      return { error: `${playerLabel(state, who.team, who.player)} ${state.names[who.team]} ha già ${PLAYER_FOUL_LIMIT} falli.` };
+    }
+    return foul ? { type: 'foul', ...who, count: 1 } : { type: 'score', ...who, pts, count };
+  }
+
+  function describeEvent(state, e) {
+    const who = e.player === undefined ? state.names[e.team] : `${playerLabel(state, e.team, e.player)} ${state.names[e.team]}`;
+    if (e.type === 'score') return `${e.pts > 0 ? '+' : '−'}${Math.abs(e.pts)} ${who}`;
+    if (e.type === 'foul') return `${foulValue(e) < 0 ? 'fallo tolto' : 'fallo'} ${who}`;
+    return `timeout ${state.names[e.team]}`;
+  }
+
+  // Esegue un comando già controllato e restituisce la frase di conferma da mostrare.
+  function applyCommand(state, now, cmd) {
+    if (cmd.type === 'undo') {
+      const last = state.events[state.events.length - 1];
+      if (!last) return 'Niente da annullare.';
+      const what = describeEvent(state, last);
+      undo(state);
+      return `Annullato: ${what}`;
+    }
+    const { team, player } = cmd;
+    if (cmd.newPlayer) addPlayer(state, team, player);
+    const extra = { ...byPlayer(player), ...(cmd.newPlayer ? { added: true } : {}) };
+    for (let i = 0; i < cmd.count; i++) {
+      record(state, now, cmd.type === 'score' ? { type: 'score', team, pts: cmd.pts, ...extra } : { type: 'foul', team, ...extra });
+    }
+    const who = player === undefined ? state.names[team] : `${playerLabel(state, team, player)} ${state.names[team]}`;
+    const added = cmd.newPlayer ? ' (nuovo in squadra)' : '';
+    if (cmd.type === 'foul') {
+      const n = player === undefined ? teamFouls(state.events, team, state.period) : playerFouls(state.events, team, player);
+      return `Fallo · ${who}${added} · ${n}° ${player === undefined ? 'di squadra' : 'personale'}`;
+    }
+    const what = cmd.count > 1 ? `${cmd.count} tiri liberi` : SHOT_NAMES[cmd.pts];
+    return `${what} · ${who}${added} · ${score(state.events, 'home')}–${score(state.events, 'away')}`;
+  }
+
+  // Il riconoscimento propone più versioni di quello che ha sentito, dalla più probabile:
+  // vale la prima che è un comando valido. Se nessuna lo è, niente cambia e si dice perché.
+  function voiceCommand(state, now, alternatives) {
+    let failed = null;
+    for (const heard of alternatives) {
+      const cmd = parseCommand(state, heard);
+      if (!cmd.error) return { ok: true, heard, message: applyCommand(state, now, cmd) };
+      failed ??= { ok: false, heard, message: cmd.error };
+    }
+    return failed ?? { ok: false, heard: '', message: 'Non ho sentito niente.' };
+  }
+
   function tenths(ms) {
     const t = Math.floor(ms / 100);
     return `${Math.floor(t / 10)}.${t % 10}`;
@@ -443,6 +967,8 @@
     pauseClock,
     resetShot,
     checkExpiry,
+    toggleClock,
+    expire,
     adjustClock,
     goToPeriod,
     addPoints,
@@ -469,6 +995,18 @@
     loadTeam,
     saveKind,
     saveTeam,
+    boxScore,
+    boxTotals,
+    gameDate,
+    gameStatus,
+    encodeBox,
+    decodeBox,
+    videoFile,
+    videoFileName,
+    speechWords,
+    parseCommand,
+    applyCommand,
+    voiceCommand,
     formatClock,
     formatShot,
   };
