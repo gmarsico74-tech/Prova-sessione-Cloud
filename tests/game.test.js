@@ -314,3 +314,68 @@ test('annullare la correzione di un giocatore tolto dall\'elenco lo fa rientrare
   assert.deepEqual(state.rosters.home, [4, 7, 11]);
   assert.equal(Game.playerPoints(state.events, 'home', 7), 2);
 });
+
+test('i nomi dei giocatori: facoltativi, ripuliti e tolti insieme al giocatore', () => {
+  const state = Game.newGame(NAMES);
+  assert.equal(Game.addPlayer(state, 'home', '7', '  Mario Rossi '), null);
+  assert.equal(Game.addPlayer(state, 'home', '4'), null);
+  assert.equal(Game.playerLabel(state, 'home', 7), '#7 Mario Rossi');
+  assert.equal(Game.playerLabel(state, 'home', 4), '#4');
+  Game.setPlayerName(state, 'home', 4, 'Luca');
+  assert.equal(Game.playerLabel(state, 'home', 4), '#4 Luca');
+  Game.setPlayerName(state, 'home', 4, '   ');
+  assert.equal(Game.playerLabel(state, 'home', 4), '#4');
+  Game.removePlayer(state, 'home', 7);
+  assert.equal(state.playerNames.home[7], undefined);
+});
+
+test('salvare una squadra: stesso nome la sostituisce, elenco in ordine alfabetico', () => {
+  const state = Game.newGame({ home: 'PC52 U19', away: 'Virtus' });
+  Game.addPlayer(state, 'home', '7', 'Rossi');
+  Game.addPlayer(state, 'home', '4');
+  Game.addPlayer(state, 'away', '10', 'Neri');
+  let library = [];
+  library = Game.storeTeam(library, Game.teamSnapshot(state, 'home'));
+  library = Game.storeTeam(library, Game.teamSnapshot(state, 'away'));
+  assert.deepEqual(library.map((t) => t.name), ['PC52 U19', 'Virtus']);
+  assert.deepEqual(library[0].players, [{ number: 4, name: '' }, { number: 7, name: 'Rossi' }]);
+  Game.addPlayer(state, 'home', '9', 'Bianchi');
+  state.names.home = 'pc52 u19';
+  library = Game.storeTeam(library, Game.teamSnapshot(state, 'home'));
+  assert.equal(library.length, 2, 'stesso nome anche con maiuscole diverse: sostituita');
+  assert.ok(Game.hasStoredTeam(library, 'PC52 U19'));
+  assert.equal(Game.deleteStoredTeam(library, 'Virtus').length, 1);
+});
+
+test('richiamare una squadra salvata mette nome, numeri e nomi dei giocatori', () => {
+  const saved = { name: 'PC52 U19', players: [{ number: 9, name: 'Bianchi' }, { number: 4, name: '' }] };
+  const state = Game.newGame(NAMES);
+  Game.addPlayer(state, 'home', '55', 'Vecchio');
+  assert.equal(Game.loadTeam(state, 'home', saved), null);
+  assert.equal(state.names.home, 'PC52 U19');
+  assert.deepEqual(state.rosters.home, [4, 9]);
+  assert.deepEqual(state.playerNames.home, { 9: 'Bianchi' });
+});
+
+test('una squadra non si richiama se i suoi giocatori hanno già punti o se è troppo lunga', () => {
+  const saved = { name: 'PC52 U19', players: [{ number: 9, name: '' }] };
+  const state = Game.newGame(NAMES);
+  Game.addPlayer(state, 'home', '5');
+  Game.addPoints(state, 0, 'home', 2, 5);
+  assert.match(Game.loadTeam(state, 'home', saved), /punti o falli/);
+  assert.deepEqual(state.rosters.home, [5]);
+
+  const big = { name: 'Amici', players: Array.from({ length: 14 }, (_, i) => ({ number: i, name: '' })) };
+  assert.match(Game.loadTeam(state, 'away', big), /14 giocatori.*Amichevole/);
+  Game.setFriendly(state, true);
+  assert.equal(Game.loadTeam(state, 'away', big), null);
+});
+
+test('una nuova partita tiene anche i nomi dei giocatori, senza condividerli', () => {
+  const state = Game.newGame(NAMES);
+  Game.addPlayer(state, 'home', '7', 'Rossi');
+  const next = Game.newGame(state.names, state);
+  assert.deepEqual(next.playerNames.home, { 7: 'Rossi' });
+  next.playerNames.home[7] = 'Verdi';
+  assert.equal(state.playerNames.home[7], 'Rossi');
+});

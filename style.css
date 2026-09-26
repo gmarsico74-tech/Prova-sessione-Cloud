@@ -424,7 +424,7 @@ input:focus-visible {
 
 .player {
   display: grid;
-  grid-template-columns: 2.6em 2.2em 2.2em repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) 2.2rem repeat(4, 2.8rem);
   align-items: center;
   gap: 6px;
 }
@@ -440,38 +440,53 @@ input:focus-visible {
   color: var(--muted);
 }
 
+.p-who,
+.lib-who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
 .p-num {
   font-family: var(--digits);
   font-weight: 700;
   color: var(--accent);
 }
 
-.p-pts,
-.p-fouls {
+.p-name,
+.lib-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-name {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.p-name:empty {
+  display: none;
+}
+
+.p-pts {
   font-family: var(--digits);
   text-align: right;
 }
 
-.p-fouls {
-  color: var(--muted);
-}
+/* Al quinto fallo: numero e pulsante F in rosso, e i punti non si segnano più */
 
-.player.out .p-num,
-.player.out .p-pts {
-  opacity: 0.45;
-}
-
-.player.out .p-fouls,
-.out-label {
+.player.out .p-num {
   color: var(--clock);
-  font-weight: 800;
 }
 
-.out-label {
-  grid-column: span 4;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-align: center;
+.foul-btn.full,
+.foul-btn.full:disabled {
+  border-color: transparent;
+  background: var(--clock);
+  color: #fff;
+  opacity: 1;
 }
 
 .players-hint {
@@ -503,12 +518,16 @@ input:focus-visible {
   margin-top: 8px;
 }
 
+.roster h3,
+.library h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
 .roster h3 {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  margin: 0;
-  font-size: 15px;
 }
 
 .roster[data-roster="home"] h3 {
@@ -526,42 +545,35 @@ input:focus-visible {
   color: var(--muted);
 }
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
+.roster-list,
+.library-list {
+  display: grid;
   gap: 6px;
   margin: 10px 0;
   padding: 0;
   list-style: none;
 }
 
-.chips li {
-  display: flex;
+.roster-list li {
+  display: grid;
+  grid-template-columns: 3em minmax(0, 1fr) 44px;
   align-items: center;
-  padding-left: 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel-2);
+  gap: 6px;
+}
+
+.chip-num {
   font-family: var(--digits);
   font-weight: 700;
 }
 
-.chips button {
-  min-height: 36px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
+.roster-list button {
+  padding: 0;
   color: var(--muted);
 }
 
-.add-player {
-  display: flex;
-  gap: 8px;
-}
-
+.roster-list input,
 .add-player input {
-  width: 6em;
+  width: 100%;
   min-height: 44px;
   padding: 0 12px;
   border: 1px solid var(--line);
@@ -571,11 +583,59 @@ input:focus-visible {
   font: inherit;
 }
 
-.error {
+.add-player {
+  display: grid;
+  grid-template-columns: 5em minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.error,
+.note {
   min-height: 1.4em;
   margin: 6px 0 0;
   font-size: 14px;
   color: var(--clock);
+}
+
+.note {
+  color: var(--go);
+}
+
+.save-team {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* Squadre salvate: si richiamano in casa o come ospite */
+
+.library {
+  margin-top: 20px;
+}
+
+.library-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto 44px;
+  align-items: center;
+  gap: 6px;
+}
+
+.library-list li.library-hint {
+  display: block;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.lib-name {
+  font-weight: 700;
+}
+
+.lib-count {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.library-list button {
+  padding: 0 12px;
 }
 
 /* Con i giocatori le squadre affiancate servono solo su schermi larghi; lì il cronometro
@@ -660,7 +720,18 @@ input:focus-visible {
     display: none;
   }
 
+  .library-list button {
+    padding: 0 8px;
+  }
+
   .topbar-actions button {
     padding: 0 10px;
+  }
+}
+
+@media (max-width: 360px) {
+  .player {
+    grid-template-columns: minmax(0, 1fr) 2rem repeat(4, 2.4rem);
+    gap: 4px;
   }
 }

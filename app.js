@@ -3,6 +3,7 @@
 // Collega il tabellone alla pagina: legge i clic, aggiorna lo stato con Game e ridisegna.
 
 const STORAGE_KEY = 'tabellone-basket';
+const LIBRARY_KEY = 'tabellone-squadre'; // le squadre salvate restano anche dopo «Nuova partita»
 const TEAMS = ['home', 'away'];
 const DEFAULT_NAMES = { home: 'PC52', away: 'OSPITI' };
 
@@ -11,6 +12,7 @@ const clockEl = $('#clock');
 const shotEl = $('#shot');
 
 let state = load();
+let library = loadLibrary();
 let audioCtx = null;
 
 // Con «Correggi» acceso i pulsanti della squadra tolgono invece di aggiungere, per una sola azione.
@@ -23,6 +25,7 @@ function load() {
       saved.clock.shotMs ??= Game.SHOT_MS; // partite salvate prima dei 24 secondi
       saved.settings ??= { playerMode: false, friendly: false }; // e prima dei giocatori
       saved.rosters ??= { home: [], away: [] };
+      saved.playerNames ??= { home: {}, away: {} }; // e prima dei nomi
       return saved;
     }
   } catch {
@@ -36,6 +39,24 @@ function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
     // senza storage il tabellone funziona lo stesso, solo non sopravvive a un ricaricamento
+  }
+}
+
+function loadLibrary() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LIBRARY_KEY));
+    if (Array.isArray(saved)) return saved;
+  } catch {
+    // nessuna squadra salvata leggibile: si parte da un elenco vuoto
+  }
+  return [];
+}
+
+function saveLibrary() {
+  try {
+    localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+  } catch {
+    // senza storage le squadre restano salvate solo finché la pagina è aperta
   }
 }
 
@@ -91,7 +112,8 @@ function fitName(input) {
   }
 }
 
-// Una riga per giocatore: numero, punti, falli e i pulsanti, oppure FUORI al quinto fallo.
+// Una riga per giocatore: numero e nome, punti e pulsanti. Il pulsante F mostra i falli presi;
+// al quinto diventa rosso, il numero si colora di rosso e il giocatore non può più segnare.
 function renderPlayers(panel, team) {
   const list = $('[data-role="players"]', panel);
   if (!state.settings.playerMode) {
@@ -110,31 +132,31 @@ function renderPlayers(panel, team) {
   const head = document.createElement('li');
   head.className = 'player head';
   head.setAttribute('aria-hidden', 'true');
-  head.append(cell('p-num', 'N°'), cell('p-pts', 'PT'), cell('p-fouls', 'F'));
+  head.append(cell('p-who', 'N°'), cell('p-pts', 'PT'));
   const rows = roster.map((number) => {
     const fouls = Game.playerFouls(state.events, team, number);
     const out = fouls >= Game.PLAYER_FOUL_LIMIT;
+    const name = state.playerNames[team][number] ?? '';
     const li = document.createElement('li');
     li.className = 'player';
     li.classList.toggle('out', out);
     li.dataset.player = number;
-    li.append(
-      cell('p-num', `#${number}`),
-      cell('p-pts', String(Game.playerPoints(state.events, team, number))),
-      cell('p-fouls', `${fouls}F`)
-    );
-    if (out && !fix) {
-      li.append(cell('out-label', 'FUORI'));
-      return li;
-    }
+    const who = document.createElement('span');
+    who.className = 'p-who';
+    who.title = name;
+    who.append(cell('p-num', `#${number}`), cell('p-name', name));
+    li.append(who, cell('p-pts', String(Game.playerPoints(state.events, team, number))));
     for (const pts of [1, 2, 3]) {
       const text = `${fix ? '−' : '+'}${pts}`;
-      const disabled = fix && !Game.canRemovePoints(state.events, team, pts, number);
+      const disabled = fix ? !Game.canRemovePoints(state.events, team, pts, number) : out;
       li.append(playerButton('score', text, `${text} al numero ${number}`, disabled, pts));
     }
-    const foulText = fix ? '−F' : '+F';
-    const noFoul = fix && !Game.lastFoul(state.events, team, number);
-    li.append(playerButton('foul', foulText, `${foulText} al numero ${number}`, noFoul));
+    const foul = fix
+      ? playerButton('foul', '−F', `−F al numero ${number}`, !Game.lastFoul(state.events, team, number))
+      : playerButton('foul', fouls > 0 ? `F${fouls}` : 'F', `+F al numero ${number}`, out);
+    foul.classList.add('foul-btn');
+    foul.classList.toggle('full', out && !fix);
+    li.append(foul);
     return li;
   });
   list.replaceChildren(head, ...rows);
@@ -151,7 +173,7 @@ function playerButton(action, text, label, disabled, pts) {
 }
 
 function renderSettings() {
-  const { settings, rosters, events } = state;
+  const { settings, rosters } = state;
   $('#player-mode').checked = settings.playerMode;
   $('#friendly').checked = settings.friendly;
   $('#roster-editor').hidden = !settings.playerMode;
@@ -160,20 +182,92 @@ function renderSettings() {
     const box = $(`[data-roster="${team}"]`);
     $('[data-role="roster-name"]', box).textContent = state.names[team];
     $('[data-role="roster-count"]', box).textContent = `${rosters[team].length} su ${max}`;
-    const chips = rosters[team].map((number) => {
-      const remove = document.createElement('button');
-      remove.dataset.action = 'remove-player';
-      remove.dataset.number = number;
-      remove.textContent = '✕';
-      remove.setAttribute('aria-label', `Togli il numero ${number}`);
-      remove.disabled = !Game.canRemovePlayer(events, team, number);
-      if (remove.disabled) remove.title = 'Ha già punti o falli';
-      const li = document.createElement('li');
-      li.append(cell('chip-num', `#${number}`), remove);
-      return li;
-    });
-    $('[data-role="chips"]', box).replaceChildren(...chips);
+    renderRosterList($('[data-role="roster-list"]', box), team);
   }
+  renderLibrary();
+}
+
+// Le righe si ricreano solo quando cambiano i numeri, così mentre si scrive un nome il campo non si chiude.
+function renderRosterList(list, team) {
+  const numbers = state.rosters[team];
+  const key = numbers.join(',');
+  if (list.dataset.key !== key) {
+    list.dataset.key = key;
+    list.replaceChildren(...numbers.map((number) => rosterRow(team, number)));
+  }
+  for (const row of list.children) {
+    const number = Number(row.dataset.number);
+    const input = $('input', row);
+    if (document.activeElement !== input) input.value = state.playerNames[team][number] ?? '';
+    const remove = $('button', row);
+    remove.disabled = !Game.canRemovePlayer(state.events, team, number);
+    remove.title = remove.disabled ? 'Ha già punti o falli' : '';
+  }
+}
+
+function rosterRow(team, number) {
+  const name = document.createElement('input');
+  name.type = 'text';
+  name.maxLength = 20;
+  name.placeholder = 'Nome';
+  name.setAttribute('aria-label', `Nome del numero ${number}`);
+  name.addEventListener('input', () => {
+    Game.setPlayerName(state, team, number, name.value);
+    save();
+    renderPlayers($(`[data-team="${team}"]`), team);
+    renderLog();
+  });
+  name.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') name.blur();
+  });
+  const remove = document.createElement('button');
+  remove.dataset.action = 'remove-player';
+  remove.dataset.number = number;
+  remove.textContent = '✕';
+  remove.setAttribute('aria-label', `Togli il numero ${number}`);
+  const li = document.createElement('li');
+  li.dataset.number = number;
+  li.append(cell('chip-num', `#${number}`), name, remove);
+  return li;
+}
+
+function renderLibrary() {
+  const list = $('#library');
+  if (library.length === 0) {
+    const hint = document.createElement('li');
+    hint.className = 'library-hint';
+    hint.textContent = 'Nessuna squadra salvata: scrivi il nome della squadra, aggiungi i giocatori e premi «Salva squadra».';
+    list.replaceChildren(hint);
+    return;
+  }
+  const items = library.map((saved) => {
+    const li = document.createElement('li');
+    li.dataset.saved = saved.name;
+    const who = document.createElement('span');
+    who.className = 'lib-who';
+    who.append(cell('lib-name', saved.name), cell('lib-count', `${saved.players.length} giocatori`));
+    li.append(
+      who,
+      libraryButton('load-team', 'In casa', `Richiama in casa: ${saved.name}`, 'home'),
+      libraryButton('load-team', 'Ospite', `Richiama come ospite: ${saved.name}`, 'away'),
+      libraryButton('delete-team', '✕', `Elimina la squadra salvata ${saved.name}`)
+    );
+    return li;
+  });
+  list.replaceChildren(...items);
+}
+
+function libraryButton(action, text, label, target) {
+  const btn = document.createElement('button');
+  btn.dataset.action = action;
+  if (target) btn.dataset.target = target;
+  btn.textContent = text;
+  btn.setAttribute('aria-label', label);
+  return btn;
+}
+
+function showNote(box, text) {
+  $('[data-role="note"]', box).textContent = text;
 }
 
 function renderClock() {
@@ -207,7 +301,9 @@ function renderLog() {
     } else {
       what = 'timeout';
     }
-    const who = e.player === undefined ? state.names[e.team] : `${state.names[e.team]} #${e.player}`;
+    const who = e.player === undefined
+      ? state.names[e.team]
+      : `${state.names[e.team]} ${Game.playerLabel(state, e.team, e.player)}`;
     const li = document.createElement('li');
     li.append(
       cell('when', `${Game.periodLabel(e.period)} ${Game.formatClock(e.clockMs)}`),
@@ -330,6 +426,37 @@ document.addEventListener('click', (e) => {
       const box = btn.closest('[data-roster]');
       Game.removePlayer(state, box.dataset.roster, Number(btn.dataset.number));
       $('[data-role="error"]', box).textContent = '';
+      showNote(box, '');
+      break;
+    }
+    case 'save-team': {
+      const box = btn.closest('[data-roster]');
+      const snapshot = Game.teamSnapshot(state, box.dataset.roster);
+      if (snapshot.players.length === 0) {
+        showNote(box, 'Aggiungi prima almeno un giocatore.');
+        return;
+      }
+      const replace = `C'è già una squadra salvata «${snapshot.name}»: la sostituisco con questa?`;
+      if (Game.hasStoredTeam(library, snapshot.name) && !confirm(replace)) return;
+      library = Game.storeTeam(library, snapshot);
+      saveLibrary();
+      showNote(box, `Squadra salvata come «${snapshot.name}».`);
+      break;
+    }
+    case 'load-team': {
+      const saved = library.find((t) => t.name === btn.closest('[data-saved]').dataset.saved);
+      if (!saved) break; // eliminata nel frattempo da un'altra scheda
+      const box = $(`[data-roster="${btn.dataset.target}"]`);
+      const error = Game.loadTeam(state, btn.dataset.target, saved);
+      $('[data-role="error"]', box).textContent = error ?? '';
+      showNote(box, error ? '' : `Richiamata «${saved.name}».`);
+      break;
+    }
+    case 'delete-team': {
+      const name = btn.closest('[data-saved]').dataset.saved;
+      if (!confirm(`Elimino la squadra salvata «${name}»? La partita in corso non cambia.`)) return;
+      library = Game.deleteStoredTeam(library, name);
+      saveLibrary();
       break;
     }
     case 'new-game':
@@ -383,13 +510,17 @@ $('#friendly').addEventListener('change', (e) => {
 
 for (const form of document.querySelectorAll('.add-player')) {
   const box = form.closest('[data-roster]');
-  const input = $('input', form);
+  const number = $('.add-number', form);
+  const name = $('.add-name', form);
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const error = Game.addPlayer(state, box.dataset.roster, input.value);
+    const error = Game.addPlayer(state, box.dataset.roster, number.value, name.value);
     $('[data-role="error"]', box).textContent = error ?? '';
-    if (!error) input.value = '';
-    input.focus();
+    if (!error) {
+      number.value = '';
+      name.value = '';
+    }
+    number.focus();
     update();
   });
 }

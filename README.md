@@ -24,10 +24,15 @@ Una pagina sola, senza installare nulla e senza connessione.
   anche a un errore di qualche minuto prima (un +2 che era un +3, un fallo dato alla persona sbagliata).
   I punti non scendono mai sotto zero e un fallo tolto conta nel periodo in cui era stato fischiato.
 - **Punti e falli ai giocatori**, da accendere in Impostazioni in fondo alla pagina. Per ogni squadra si inseriscono
-  i numeri di maglia, da 0 a 99, al massimo 12 (16 se si spunta «Amichevole»). Accanto a ogni numero ci sono
-  +1, +2, +3 e +F; i punti dei giocatori fanno il punteggio della squadra e i loro falli i falli di squadra.
-  Al quinto fallo il giocatore risulta FUORI. Si toglie dall'elenco solo un giocatore senza punti né falli.
+  i numeri di maglia, da 0 a 99, al massimo 12 (16 se si spunta «Amichevole»), e se si vuole il nome del giocatore,
+  che si può scrivere o cambiare anche dopo. Accanto a ogni numero ci sono +1, +2, +3 e F; i punti dei giocatori
+  fanno il punteggio della squadra e i loro falli i falli di squadra. Il pulsante F mostra i falli presi (F1, F2…):
+  al quinto diventa rosso, il numero del giocatore si colora di rosso e i suoi pulsanti dei punti si spengono.
+  Si toglie dall'elenco solo un giocatore senza punti né falli.
   Spenta l'opzione, il tabellone torna come prima, con gli stessi punti.
+- **Squadre salvate**: in Impostazioni, «Salva squadra» conserva nome della squadra, numeri e nomi dei giocatori.
+  Nell'elenco «Squadre salvate» una squadra si richiama in casa o come ospite con un tocco, finché i giocatori
+  in campo non hanno ancora punti o falli. Le squadre restano salvate nel browser del dispositivo su cui le salvi.
 - La partita **resta salvata** nel browser: ricaricando la pagina si riprende da dove si era.
 - **Schermo intero** con il pulsante in alto a destra, comodo su un tablet a bordo campo; si esce con lo stesso
   pulsante o con Esc. Sull'iPhone il browser non lo permette e il pulsante non compare.
