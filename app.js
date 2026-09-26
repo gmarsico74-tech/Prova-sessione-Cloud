@@ -150,6 +150,16 @@ function buzzer(seconds) {
   osc.stop(audioCtx.currentTime + seconds);
 }
 
+// A schermo intero il tabellone si legge da lontano, per esempio da un tablet a bordo campo.
+function toggleFullscreen() {
+  const request = document.fullscreenElement
+    ? document.exitFullscreen()
+    : document.documentElement.requestFullscreen();
+  request.catch(() => {
+    // il browser ha rifiutato: il tabellone resta com'è
+  });
+}
+
 function tick() {
   const expired = Game.checkExpiry(state.clock, Date.now());
   if (expired) {
@@ -186,6 +196,9 @@ document.addEventListener('click', (e) => {
       break;
     case 'shot':
       Game.resetShot(state.clock, now, Number(btn.dataset.ms));
+      break;
+    case 'fullscreen':
+      toggleFullscreen();
       break;
     case 'reset-clock':
       Game.goToPeriod(state, state.period);
@@ -230,6 +243,9 @@ for (const input of document.querySelectorAll('.team-name')) {
   });
   input.addEventListener('blur', render);
 }
+
+// Sull'iPhone il browser non permette lo schermo intero: lì il pulsante non compare.
+$('[data-action="fullscreen"]').hidden = !document.fullscreenEnabled;
 
 window.addEventListener('resize', render);
 render();
