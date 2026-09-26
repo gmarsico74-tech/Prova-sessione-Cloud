@@ -8,6 +8,9 @@
   const SHOT_MS = 24 * 1000;
   const SHOT_SHORT_MS = 14 * 1000; // dopo un rimbalzo offensivo o un fallo nella metà campo d'attacco
   const BONUS_FOULS = 5; // dal 5° fallo di squadra nel periodo si tirano i liberi
+  const PLAYER_FOUL_LIMIT = 5; // al 5° fallo personale il giocatore esce
+  const MAX_PLAYERS = 12;
+  const MAX_PLAYERS_FRIENDLY = 16;
 
   function periodLength(period) {
     return period <= 4 ? QUARTER_MS : OVERTIME_MS;
@@ -21,23 +24,76 @@
     return { remainingMs: periodLength(period), shotMs: SHOT_MS, running: false, startedAt: 0 };
   }
 
-  function newGame(names) {
+  // Una nuova partita riparte da zero ma tiene impostazioni e numeri di maglia di quella di prima.
+  function newGame(names, setup = {}) {
     return {
       names: { ...names },
+      settings: { playerMode: false, friendly: false, ...setup.settings },
+      rosters: { home: [...(setup.rosters?.home ?? [])], away: [...(setup.rosters?.away ?? [])] },
       period: 1,
       clock: freshClock(1),
       events: [],
     };
   }
 
+  // Le correzioni sono canestri con punti negativi: la somma dà sempre il punteggio giusto.
   function score(events, team) {
     return events.reduce((sum, e) => (e.type === 'score' && e.team === team ? sum + e.pts : sum), 0);
   }
 
+  function playerPoints(events, team, player) {
+    return events.reduce(
+      (sum, e) => (e.type === 'score' && e.team === team && e.player === player ? sum + e.pts : sum),
+      0
+    );
+  }
+
+  // Un fallo vale +1, la sua correzione -1 (n: -1).
+  function foulValue(e) {
+    return e.n ?? 1;
+  }
+
   // I falli dei tempi supplementari si sommano a quelli del 4° quarto.
+  // Un fallo tolto conta nel periodo del fallo che annulla, anche se la correzione arriva dopo.
   function teamFouls(events, team, period) {
     const counts = period <= 4 ? (p) => p === period : (p) => p >= 4;
-    return events.filter((e) => e.type === 'foul' && e.team === team && counts(e.period)).length;
+    return events.reduce(
+      (sum, e) =>
+        e.type === 'foul' && e.team === team && counts(e.foulPeriod ?? e.period) ? sum + foulValue(e) : sum,
+      0
+    );
+  }
+
+  function playerFouls(events, team, player) {
+    return events.reduce(
+      (sum, e) => (e.type === 'foul' && e.team === team && e.player === player ? sum + foulValue(e) : sum),
+      0
+    );
+  }
+
+  // Falli ancora validi della squadra, dal più vecchio al più recente, senza quelli già tolti.
+  function openFouls(events, team) {
+    const open = [];
+    for (const e of events) {
+      if (e.type !== 'foul' || e.team !== team) continue;
+      if (foulValue(e) > 0) {
+        open.push({ period: e.period, player: e.player });
+      } else {
+        let i = open.length - 1;
+        while (i >= 0 && !(open[i].player === e.player && open[i].period === e.foulPeriod)) i--;
+        if (i >= 0) open.splice(i, 1);
+      }
+    }
+    return open;
+  }
+
+  // L'ultimo fallo che si può togliere: quello del giocatore indicato, o della squadra se non c'è giocatore.
+  function lastFoul(events, team, player) {
+    const open = openFouls(events, team);
+    for (let i = open.length - 1; i >= 0; i--) {
+      if (player === undefined || open[i].player === player) return open[i];
+    }
+    return null;
   }
 
   // 2 timeout nel primo tempo, 3 nel secondo, 1 per ogni supplementare; quelli non usati si perdono.
@@ -126,12 +182,36 @@
     state.events.push({ ...event, period: state.period, clockMs: remainingMs(state.clock, now) });
   }
 
-  function addPoints(state, now, team, pts) {
-    record(state, now, { type: 'score', team, pts });
+  // Senza giocatore i punti e i falli vanno solo alla squadra.
+  function byPlayer(player) {
+    return player === undefined ? {} : { player };
   }
 
-  function addFoul(state, now, team) {
-    record(state, now, { type: 'foul', team });
+  function addPoints(state, now, team, pts, player) {
+    record(state, now, { type: 'score', team, pts, ...byPlayer(player) });
+  }
+
+  // Una correzione non può togliere più punti di quelli che la squadra o il giocatore hanno.
+  function canRemovePoints(events, team, pts, player) {
+    const have = player === undefined ? score(events, team) : playerPoints(events, team, player);
+    return have >= pts;
+  }
+
+  function removePoints(state, now, team, pts, player) {
+    if (!canRemovePoints(state.events, team, pts, player)) return false;
+    record(state, now, { type: 'score', team, pts: -pts, ...byPlayer(player) });
+    return true;
+  }
+
+  function addFoul(state, now, team, player) {
+    record(state, now, { type: 'foul', team, ...byPlayer(player) });
+  }
+
+  function removeFoul(state, now, team, player) {
+    const foul = lastFoul(state.events, team, player);
+    if (!foul) return false;
+    record(state, now, { type: 'foul', team, n: -1, foulPeriod: foul.period, ...byPlayer(foul.player) });
+    return true;
   }
 
   // Il timeout ferma il cronometro; se la squadra non ne ha più non succede nulla.
@@ -142,8 +222,56 @@
     return true;
   }
 
+  // Se annullare ridà punti o falli a un giocatore tolto dall'elenco, il giocatore ci rientra.
   function undo(state) {
-    state.events.pop();
+    const e = state.events.pop();
+    if (e?.player === undefined) return;
+    const roster = state.rosters[e.team];
+    if (!roster.includes(e.player) && !canRemovePlayer(state.events, e.team, e.player)) {
+      roster.push(e.player);
+      roster.sort((a, b) => a - b);
+    }
+  }
+
+  function maxPlayers(state) {
+    return state.settings.friendly ? MAX_PLAYERS_FRIENDLY : MAX_PLAYERS;
+  }
+
+  // Aggiunge un numero di maglia; se non si può, restituisce il motivo da mostrare.
+  function addPlayer(state, team, value) {
+    const text = String(value).trim();
+    if (!/^\d{1,2}$/.test(text)) return 'Il numero di maglia va da 0 a 99.';
+    const number = Number(text);
+    const roster = state.rosters[team];
+    if (roster.includes(number)) return `Il numero ${number} c'è già.`;
+    if (roster.length >= maxPlayers(state)) {
+      return state.settings.friendly
+        ? `Al massimo ${MAX_PLAYERS_FRIENDLY} giocatori.`
+        : `Al massimo ${MAX_PLAYERS} giocatori: in amichevole si arriva a ${MAX_PLAYERS_FRIENDLY}.`;
+    }
+    roster.push(number);
+    roster.sort((a, b) => a - b);
+    return null;
+  }
+
+  // Si toglie solo un giocatore rimasto a zero punti e zero falli, così i totali restano giusti.
+  function canRemovePlayer(events, team, player) {
+    return playerPoints(events, team, player) === 0 && playerFouls(events, team, player) === 0;
+  }
+
+  function removePlayer(state, team, player) {
+    if (!canRemovePlayer(state.events, team, player)) return false;
+    state.rosters[team] = state.rosters[team].filter((n) => n !== player);
+    return true;
+  }
+
+  // Si esce dall'amichevole solo se nessuna squadra ha più giocatori di quelli ammessi in campionato.
+  function setFriendly(state, friendly) {
+    if (!friendly && Object.values(state.rosters).some((r) => r.length > MAX_PLAYERS)) {
+      return `Prima togli i giocatori oltre il ${MAX_PLAYERS}°.`;
+    }
+    state.settings.friendly = friendly;
+    return null;
   }
 
   function tenths(ms) {
@@ -169,11 +297,17 @@
     SHOT_MS,
     SHOT_SHORT_MS,
     BONUS_FOULS,
+    PLAYER_FOUL_LIMIT,
+    MAX_PLAYERS,
+    MAX_PLAYERS_FRIENDLY,
     periodLength,
     periodLabel,
     newGame,
     score,
+    playerPoints,
     teamFouls,
+    playerFouls,
+    lastFoul,
     timeoutWindow,
     timeoutsLeft,
     remainingMs,
@@ -186,9 +320,17 @@
     adjustClock,
     goToPeriod,
     addPoints,
+    canRemovePoints,
+    removePoints,
     addFoul,
+    removeFoul,
     takeTimeout,
     undo,
+    maxPlayers,
+    addPlayer,
+    canRemovePlayer,
+    removePlayer,
+    setFriendly,
     formatClock,
     formatShot,
   };

@@ -19,6 +19,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -102,8 +106,9 @@ input:focus-visible {
   display: grid;
   grid-template-columns: 1fr minmax(260px, auto) 1fr;
   grid-template-areas:
-    "home center away"
-    "log  log    log";
+    "home     center   away"
+    "log      log      log"
+    "settings settings settings";
   gap: 16px;
   max-width: 1100px;
   margin: 0 auto;
@@ -112,7 +117,8 @@ input:focus-visible {
 
 .team,
 .center,
-.log-panel {
+.log-panel,
+.settings-panel {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -135,6 +141,10 @@ input:focus-visible {
 
 .log-panel {
   grid-area: log;
+}
+
+.settings-panel {
+  grid-area: settings;
 }
 
 /* Squadre */
@@ -238,8 +248,13 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 12px;
   text-align: center;
+}
+
+.center-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .period-row {
@@ -323,7 +338,8 @@ input:focus-visible {
 
 /* Cronaca */
 
-.log-panel h2 {
+.log-panel h2,
+.settings-panel h2 {
   margin: 0 0 8px;
   font-size: 13px;
   letter-spacing: 0.08em;
@@ -368,22 +384,248 @@ input:focus-visible {
   color: var(--muted);
 }
 
+/* Correzioni: con «Correggi» acceso i pulsanti diventano meno, in rosso */
+
+.correct-toggle {
+  margin-top: auto;
+  color: var(--muted);
+}
+
+.correct-toggle[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--clock);
+  color: #fff;
+  font-weight: 700;
+}
+
+.team.correcting [data-action="score"],
+.team.correcting [data-action="foul"] {
+  border-color: var(--clock);
+  background: color-mix(in srgb, var(--clock) 22%, var(--panel-2));
+}
+
+/* Punti e falli ai giocatori */
+
+.player-mode .team-only {
+  display: none;
+}
+
+.players {
+  display: none;
+}
+
+.player-mode .players {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.player {
+  display: grid;
+  grid-template-columns: 2.6em 2.2em 2.2em repeat(4, minmax(0, 1fr));
+  align-items: center;
+  gap: 6px;
+}
+
+.player button {
+  padding: 0;
+  font-weight: 700;
+}
+
+.player.head {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.p-num {
+  font-family: var(--digits);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.p-pts,
+.p-fouls {
+  font-family: var(--digits);
+  text-align: right;
+}
+
+.p-fouls {
+  color: var(--muted);
+}
+
+.player.out .p-num,
+.player.out .p-pts {
+  opacity: 0.45;
+}
+
+.player.out .p-fouls,
+.out-label {
+  color: var(--clock);
+  font-weight: 800;
+}
+
+.out-label {
+  grid-column: span 4;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.players-hint {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* Impostazioni */
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.check input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--go);
+}
+
+.rosters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.roster h3 {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+}
+
+.roster[data-roster="home"] h3 {
+  color: var(--home);
+}
+
+.roster[data-roster="away"] h3 {
+  color: var(--away);
+}
+
+.roster-count {
+  font-family: var(--digits);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chips li {
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  font-family: var(--digits);
+  font-weight: 700;
+}
+
+.chips button {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.add-player {
+  display: flex;
+  gap: 8px;
+}
+
+.add-player input {
+  width: 6em;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: inherit;
+  font: inherit;
+}
+
+.error {
+  min-height: 1.4em;
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--clock);
+}
+
+/* Con i giocatori le squadre affiancate servono solo su schermi larghi; lì il cronometro
+   resta in vista mentre si scorrono i giocatori, senza mai uscire dalla sua colonna */
+
+@media (min-width: 1001px) {
+  .player-mode .center {
+    justify-content: flex-start;
+  }
+
+  .player-mode .center-inner {
+    position: sticky;
+    top: 16px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .player-mode .board {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "center"
+      "home"
+      "away"
+      "log"
+      "settings";
+  }
+}
+
 /* Telefono: cronometro sopra, squadre affiancate, cronaca sotto */
 
 @media (max-width: 760px) {
   .board {
     grid-template-columns: 1fr 1fr;
     grid-template-areas:
-      "center center"
-      "home   away"
-      "log    log";
+      "center   center"
+      "home     away"
+      "log      log"
+      "settings settings";
     gap: 12px;
   }
 
   .team,
   .center,
-  .log-panel {
+  .log-panel,
+  .settings-panel {
     padding: 12px;
+  }
+
+  .rosters {
+    grid-template-columns: 1fr;
   }
 
   .team .btn-row {

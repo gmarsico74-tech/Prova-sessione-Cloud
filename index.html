@@ -24,7 +24,7 @@
     <section class="team home" data-team="home">
       <input class="team-name" maxlength="14" spellcheck="false" aria-label="Nome squadra di casa">
       <output class="score" data-role="score">0</output>
-      <div class="btn-row">
+      <div class="btn-row team-only">
         <button data-action="score" data-pts="1">+1</button>
         <button data-action="score" data-pts="2">+2</button>
         <button data-action="score" data-pts="3">+3</button>
@@ -33,39 +33,43 @@
         <span class="stat-label">Falli</span>
         <strong class="stat-value" data-role="fouls">0</strong>
         <span class="bonus" data-role="bonus" hidden>BONUS</span>
-        <button data-action="foul">+ Fallo</button>
+        <button data-action="foul" class="team-only">+ Fallo</button>
       </div>
       <div class="stat">
         <span class="stat-label">Timeout</span>
         <span class="dots" data-role="timeouts"></span>
         <button data-action="timeout">Timeout</button>
       </div>
+      <ol class="players" data-role="players" aria-label="Giocatori di casa"></ol>
+      <button data-action="correct" class="correct-toggle" aria-pressed="false">✎ Correggi</button>
     </section>
 
     <section class="center">
-      <div class="period-row">
-        <button data-action="prev-period" aria-label="Periodo precedente">◀</button>
-        <div id="period" class="period">Q1</div>
-        <button data-action="next-period" aria-label="Periodo successivo">▶</button>
-      </div>
-      <div id="clock" class="clock" role="timer">10:00</div>
-      <div class="shot-row">
-        <button data-action="shot" data-ms="24000" aria-label="Riporta i 24 secondi a 24">24</button>
-        <div id="shot" class="shot" role="timer" aria-label="24 secondi">24</div>
-        <button data-action="shot" data-ms="14000" aria-label="Riporta i 24 secondi a 14">14</button>
-      </div>
-      <button data-action="toggle-clock" class="primary" title="Barra spaziatrice">▶ Avvia</button>
-      <div class="btn-row">
-        <button data-action="adjust" data-ms="-1000" aria-label="Togli un secondo">−1s</button>
-        <button data-action="reset-clock" title="Riporta il cronometro all'inizio del periodo">Reset</button>
-        <button data-action="adjust" data-ms="1000" aria-label="Aggiungi un secondo">+1s</button>
+      <div class="center-inner">
+        <div class="period-row">
+          <button data-action="prev-period" aria-label="Periodo precedente">◀</button>
+          <div id="period" class="period">Q1</div>
+          <button data-action="next-period" aria-label="Periodo successivo">▶</button>
+        </div>
+        <div id="clock" class="clock" role="timer">10:00</div>
+        <div class="shot-row">
+          <button data-action="shot" data-ms="24000" aria-label="Riporta i 24 secondi a 24">24</button>
+          <div id="shot" class="shot" role="timer" aria-label="24 secondi">24</div>
+          <button data-action="shot" data-ms="14000" aria-label="Riporta i 24 secondi a 14">14</button>
+        </div>
+        <button data-action="toggle-clock" class="primary" title="Barra spaziatrice">▶ Avvia</button>
+        <div class="btn-row">
+          <button data-action="adjust" data-ms="-1000" aria-label="Togli un secondo">−1s</button>
+          <button data-action="reset-clock" title="Riporta il cronometro all'inizio del periodo">Reset</button>
+          <button data-action="adjust" data-ms="1000" aria-label="Aggiungi un secondo">+1s</button>
+        </div>
       </div>
     </section>
 
     <section class="team away" data-team="away">
       <input class="team-name" maxlength="14" spellcheck="false" aria-label="Nome squadra ospite">
       <output class="score" data-role="score">0</output>
-      <div class="btn-row">
+      <div class="btn-row team-only">
         <button data-action="score" data-pts="1">+1</button>
         <button data-action="score" data-pts="2">+2</button>
         <button data-action="score" data-pts="3">+3</button>
@@ -74,19 +78,56 @@
         <span class="stat-label">Falli</span>
         <strong class="stat-value" data-role="fouls">0</strong>
         <span class="bonus" data-role="bonus" hidden>BONUS</span>
-        <button data-action="foul">+ Fallo</button>
+        <button data-action="foul" class="team-only">+ Fallo</button>
       </div>
       <div class="stat">
         <span class="stat-label">Timeout</span>
         <span class="dots" data-role="timeouts"></span>
         <button data-action="timeout">Timeout</button>
       </div>
+      <ol class="players" data-role="players" aria-label="Giocatori ospiti"></ol>
+      <button data-action="correct" class="correct-toggle" aria-pressed="false">✎ Correggi</button>
     </section>
 
     <section class="log-panel">
       <h2>Cronaca</h2>
       <ol id="log" class="log"></ol>
       <p class="hint">Barra spaziatrice: avvia e ferma il cronometro · Ctrl+Z: annulla l'ultima azione</p>
+    </section>
+
+    <section class="settings-panel">
+      <h2>Impostazioni</h2>
+      <label class="check">
+        <input type="checkbox" id="player-mode">
+        Punti e falli ai giocatori
+      </label>
+      <div id="roster-editor" hidden>
+        <label class="check">
+          <input type="checkbox" id="friendly">
+          Amichevole: fino a 16 giocatori per squadra
+        </label>
+        <p class="error" id="friendly-error" aria-live="polite"></p>
+        <div class="rosters">
+          <div class="roster" data-roster="home">
+            <h3><span data-role="roster-name"></span> <span class="roster-count" data-role="roster-count"></span></h3>
+            <ul class="chips" data-role="chips"></ul>
+            <form class="add-player" novalidate>
+              <input type="number" min="0" max="99" step="1" inputmode="numeric" placeholder="N°" aria-label="Numero di maglia da aggiungere alla squadra di casa">
+              <button type="submit">Aggiungi</button>
+            </form>
+            <p class="error" data-role="error" aria-live="polite"></p>
+          </div>
+          <div class="roster" data-roster="away">
+            <h3><span data-role="roster-name"></span> <span class="roster-count" data-role="roster-count"></span></h3>
+            <ul class="chips" data-role="chips"></ul>
+            <form class="add-player" novalidate>
+              <input type="number" min="0" max="99" step="1" inputmode="numeric" placeholder="N°" aria-label="Numero di maglia da aggiungere alla squadra ospite">
+              <button type="submit">Aggiungi</button>
+            </form>
+            <p class="error" data-role="error" aria-live="polite"></p>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 
