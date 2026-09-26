@@ -4,6 +4,8 @@
 
 const STORAGE_KEY = 'tabellone-basket';
 const LIBRARY_KEY = 'tabellone-squadre'; // le squadre salvate restano anche dopo «Nuova partita»
+const SITE_URL = 'https://gmarsico74-tech.github.io/Prova-sessione-Cloud/';
+const SHARE_PREFIX = '#squadre=';
 const TEAMS = ['home', 'away'];
 const DEFAULT_NAMES = { home: 'PC52', away: 'OSPITI' };
 
@@ -233,6 +235,7 @@ function rosterRow(team, number) {
 
 function renderLibrary() {
   const list = $('#library');
+  $('[data-action="share-teams"]').disabled = library.length === 0;
   if (library.length === 0) {
     const hint = document.createElement('li');
     hint.className = 'library-hint';
@@ -264,6 +267,56 @@ function libraryButton(action, text, label, target) {
   btn.textContent = text;
   btn.setAttribute('aria-label', label);
   return btn;
+}
+
+// Il link porta le squadre salvate su un altro dispositivo. Dalla pagina aperta come file
+// punta al sito online, perché un indirizzo del computer sul telefono non si aprirebbe.
+function shareLink() {
+  const base = location.protocol.startsWith('http') ? location.origin + location.pathname : SITE_URL;
+  return `${base}${SHARE_PREFIX}${Game.encodeLibrary(library)}`;
+}
+
+async function shareTeams() {
+  const url = shareLink();
+  const note = $('#share-note');
+  try {
+    if (navigator.share) {
+      const text = 'Apri il link per aggiungere le squadre al tabellone.';
+      await navigator.share({ title: 'Squadre del tabellone', text, url });
+      note.textContent = '';
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+    note.textContent = "Link copiato: incollalo in un messaggio a te stesso e aprilo sull'altro dispositivo.";
+  } catch (err) {
+    if (err?.name === 'AbortError') return; // condivisione annullata
+    prompt("Copia questo link e aprilo sull'altro dispositivo:", url);
+  }
+}
+
+// Aperto un link con le squadre, le aggiunge a quelle salvate dopo averlo chiesto.
+function importFromLink() {
+  if (!location.hash.startsWith(SHARE_PREFIX)) return;
+  const incoming = Game.decodeLibrary(location.hash.slice(SHARE_PREFIX.length));
+  try {
+    history.replaceState(null, '', location.pathname + location.search);
+  } catch {
+    // se il browser non lo permette, il link resta nella barra degli indirizzi: nessun danno
+  }
+  if (!incoming) {
+    alert('Questo link delle squadre è rovinato o incompleto: fattelo rimandare.');
+    return;
+  }
+  const what = incoming.length === 1 ? 'la squadra' : `${incoming.length} squadre`;
+  const where = state.settings.playerMode
+    ? 'in Impostazioni, sotto «Squadre salvate»'
+    : 'in Impostazioni, accendendo «Punti e falli ai giocatori»';
+  const ask =
+    `Aggiungo ${what}: ${incoming.map((t) => t.name).join(', ')}?\n` +
+    `Quelle con lo stesso nome vengono sostituite. Le trovi ${where}.`;
+  if (!confirm(ask)) return;
+  library = Game.mergeLibrary(library, incoming);
+  saveLibrary();
 }
 
 function showNote(box, text) {
@@ -452,6 +505,9 @@ document.addEventListener('click', (e) => {
       showNote(box, error ? '' : `Richiamata «${saved.name}».`);
       break;
     }
+    case 'share-teams':
+      shareTeams();
+      return;
     case 'delete-team': {
       const name = btn.closest('[data-saved]').dataset.saved;
       if (!confirm(`Elimino la squadra salvata «${name}»? La partita in corso non cambia.`)) return;
@@ -528,6 +584,12 @@ for (const form of document.querySelectorAll('.add-player')) {
 // Sull'iPhone il browser non permette lo schermo intero: lì il pulsante non compare.
 $('[data-action="fullscreen"]').hidden = !document.fullscreenEnabled;
 
+window.addEventListener('hashchange', () => {
+  importFromLink();
+  render();
+});
+
 window.addEventListener('resize', render);
+importFromLink();
 render();
 setInterval(tick, 100);

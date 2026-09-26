@@ -638,6 +638,16 @@ input:focus-visible {
   padding: 0 12px;
 }
 
+.library-help {
+  margin: 12px 0 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.share-teams {
+  width: 100%;
+}
+
 /* Con i giocatori le squadre affiancate servono solo su schermi larghi; lì il cronometro
    resta in vista mentre si scorrono i giocatori, senza mai uscire dalla sua colonna */
 
