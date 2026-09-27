@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Statistiche</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="statistiche">
+  <header class="topbar">
+    <h1>Statistiche</h1>
+    <div class="topbar-actions">
+      <a class="button-link" href="./">Tabellone</a>
+    </div>
+  </header>
+
+  <main class="stats">
+    <section class="panel">
+      <h2>Archivio delle partite</h2>
+      <p class="help">
+        Qui ci sono le partite salvate con «Salva nell'archivio» nel tabellone di questo dispositivo e quelle
+        aggiunte da un «File della partita». Una partita dello stesso giorno con le stesse squadre sostituisce
+        quella di prima.
+      </p>
+      <ul id="games" class="games"></ul>
+      <div class="stats-actions">
+        <label class="button-link file-button">
+          Aggiungi file
+          <input type="file" id="add-files" accept=".json,application/json" multiple hidden>
+        </label>
+        <button type="button" data-action="export-archive">Scarica l'archivio</button>
+      </div>
+      <p class="note" id="archive-note" aria-live="polite"></p>
+    </section>
+
+    <section class="panel" id="game-panel" hidden>
+      <h2>Tabellino della partita</h2>
+      <p class="match-title" id="game-title"></p>
+      <div id="game-box" class="box"></div>
+      <p class="legend">
+        MIN minuti · PT punti · T2, T3, TL tiri da 2, da 3 e liberi segnati/tentati · RO RD RT rimbalzi in
+        attacco, in difesa e totali · AS assist · PR palle recuperate · PP palle perse · ST stoppate date ·
+        SS stoppate subite · FF falli fatti · FS falli subiti · +/− più/meno · VAL valutazione FIBA.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>Statistiche della stagione</h2>
+      <div class="filters">
+        <label>Squadra <select id="team"></select></label>
+        <label>Dal <input type="date" id="from"></label>
+        <label>Al <input type="date" id="to"></label>
+        <label class="check"><input type="checkbox" id="averages" checked> Medie a partita</label>
+      </div>
+      <p class="record" id="record"></p>
+      <div id="season" class="box"></div>
+      <div class="stats-actions">
+        <button type="button" data-action="export-csv">Scarica per Excel</button>
+      </div>
+      <p class="legend">
+        PG partite giocate; T2%, T3%, TL% percentuali di tiro sul totale del periodo scelto. Minuti e più/meno
+        contano solo le partite in cui è stato detto il quintetto.
+      </p>
+    </section>
+  </main>
+
+  <script src="game.js"></script>
+  <script src="statistiche.js"></script>
+</body>
+</html>

@@ -525,9 +525,10 @@ test('il tabellino conta punti, canestri da 1, 2 e 3 e falli di ogni giocatore, 
     { period: 2, home: 0, away: 2 },
   ]);
   const rossi = box.teams.home.players.find((p) => p.number === 25);
-  assert.deepEqual(rossi, { number: 25, name: 'Rossi', pts: 5, made: [0, 1, 1], fouls: 0, secs: null });
-  assert.deepEqual(box.teams.away.team, { pts: 2, made: [0, 1, 0], fouls: 0 }, 'i punti senza giocatore');
-  assert.deepEqual(Game.boxTotals(box.teams.away), { pts: 2, made: [0, 1, 0], fouls: 1 });
+  assert.deepEqual([rossi.pts, rossi.made, rossi.fouls, rossi.secs, rossi.pm], [5, [0, 1, 1], 0, null, null]);
+  assert.deepEqual([box.teams.away.team.pts, box.teams.away.team.made], [2, [0, 1, 0]], 'i punti senza giocatore');
+  const away = Game.boxTotals(box.teams.away);
+  assert.deepEqual([away.pts, away.made, away.fouls], [2, [0, 1, 0], 1]);
   assert.deepEqual(Game.boxScore(state, 0, 1).periods, [{ period: 1, home: 6, away: 0 }], 'fino alla fine del Q1');
 });
 
@@ -543,7 +544,9 @@ test('il tabellino passa dentro un link e torna uguale; un link rovinato non si 
   assert.equal(back.date, '2026-09-27');
   assert.equal(back.status, 'Finale');
   assert.deepEqual(back.periods, box.periods);
-  assert.deepEqual(back.teams, box.teams);
+  const short = (side) => side.players.map((p) => [p.number, p.name, p.pts, p.made, p.fouls, p.secs]);
+  assert.deepEqual(short(back.teams.home), short(box.teams.home));
+  assert.deepEqual(short(back.teams.away), short(box.teams.away));
   assert.equal(back.teams.home.players.find((p) => p.number === 25).secs, 30);
   assert.equal(Game.decodeBox('1.bm9uIMOoIHVuIHRhYmVsbGlubw'), null);
   assert.equal(Game.decodeBox('rovinato'), null);
@@ -605,7 +608,7 @@ test('un giocatore mai in campo e senza punti né falli si può togliere; uno ch
 
 // ——— Il file per il video ———
 
-test('il file per il video aggancia le azioni al tempo del tabellone, in ordine e senza quelle corrette', () => {
+test('il file della partita aggancia le azioni al tempo del tabellone, in ordine e senza quelle corrette', () => {
   const state = gameWithPlayers();
   Game.goToPeriod(state, 2);
   Game.startClock(state.clock, 0);
@@ -615,7 +618,7 @@ test('il file per il video aggancia le azioni al tempo del tabellone, in ordine 
   Game.addPoints(state, 40_000, 'home', 2, 25);
   Game.addFoul(state, 50_000, 'away', 12);
   Game.addFoul(state, 60_000, 'away', 12);
-  const file = Game.videoFile(state, 70_000);
+  const file = Game.gameFile(state, 70_000);
   assert.equal(file.cronometro, undefined, 'niente ore del giorno');
   assert.deepEqual(
     file.azioni.map((a) => [a.periodo, a.tempo, a.ms_restanti, a.tipo, a.numero, a.scritta]),
@@ -631,30 +634,30 @@ test('il file per il video aggancia le azioni al tempo del tabellone, in ordine 
   assert.equal(file.squadre.ospiti.giocatori.find((g) => g.numero === 12).nome, 'De Luca');
 });
 
-test('nel file per il video le azioni dette fuori ordine tornano in ordine di tempo', () => {
+test('nel file della partita le azioni dette fuori ordine tornano in ordine di tempo', () => {
   const state = voiceGame();
   Game.voiceCommand(state, 0, ['canestro del 25 al 5 e 00 del terzo quarto']);
   Game.voiceCommand(state, 0, ['tripla del 25 al 8 e 10 del terzo quarto']); // detta dopo, avvenuta prima
-  const file = Game.videoFile(state, 0);
+  const file = Game.gameFile(state, 0);
   assert.deepEqual(file.azioni.map((a) => [a.tempo, a.punti, a.punteggio.casa]), [['8:10', 3, 3], ['5:00', 2, 5]]);
 });
 
-test('il file per il video ha il tabellino alla fine di ogni periodo finito, con i minuti', () => {
+test('il file della partita ha il tabellino alla fine di ogni periodo finito, con i minuti', () => {
   const state = voiceGame();
   Game.voiceCommand(state, 0, ['quintetto 25 7 1 2 3 PC52 inizio primo quarto']);
   Game.voiceCommand(state, 0, ['tripla del 25 al 5 e 00']);
   Game.voiceCommand(state, 0, ['canestro del 12 al 9 e 00 del secondo quarto']);
-  const file = Game.videoFile(state, 0);
+  const file = Game.gameFile(state, 0);
   assert.equal(file.fine_periodi.length, 1, 'il Q2 non è finito');
   const q1 = file.fine_periodi[0];
   assert.equal(q1.periodo, 'Q1');
   assert.deepEqual(q1.punteggio, { casa: 3, ospiti: 0 });
   const rossi = q1.tabellino.casa.giocatori.find((g) => g.numero === 25);
-  assert.equal(rossi.da3, 1);
+  assert.equal(rossi.t3_segnati, 1);
   assert.equal(rossi.minuti, '10:00');
   assert.equal(file.azioni[0].tipo, 'quintetto');
   assert.equal(file.azioni[0].in_campo.length, 5);
-  assert.match(Game.videoFileName({ ...state, names: { home: 'PC52 Under 19', away: 'Città' } }, 0), /^partita_pc52-under-19_citta_\d{4}-\d{2}-\d{2}\.json$/);
+  assert.match(Game.gameFileName({ ...state, names: { home: 'PC52 Under 19', away: 'Città' } }, 0), /^partita_pc52-under-19_citta_\d{4}-\d{2}-\d{2}\.json$/);
 });
 
 // ——— Comandi vocali ———
@@ -667,7 +670,6 @@ test('le parole della voce diventano minuscole, senza accenti, con i numeri in c
 
 test('i comandi vocali capiscono canestri, liberi, triple e falli', () => {
   const state = gameWithPlayers();
-  const now = at(1, 10, 0);
   const cases = [
     ['Canestro del numero 25 della PC52', { type: 'score', team: 'home', player: 25, pts: 2, count: 1 }],
     ['canestro da tre del 25', { type: 'score', team: 'home', player: 25, pts: 3, count: 1 }],
@@ -684,7 +686,7 @@ test('i comandi vocali capiscono canestri, liberi, triple e falli', () => {
     ['fallo 12', { type: 'foul', team: 'away', player: 12, count: 1 }],
   ];
   for (const [heard, expected] of cases) {
-    assert.deepEqual(Game.parseCommand(state, heard, 0), { ...expected, at: now }, heard);
+    assert.deepEqual(Game.parseCommand(state, heard, 0), { type: 'actions', items: [expected], at: at(1, 10, 0) }, heard);
   }
   assert.deepEqual(Game.parseCommand(state, 'annulla', 0), { type: 'undo' });
 });
@@ -752,19 +754,18 @@ test('i comandi vocali non segnano niente se manca qualcosa o è ambiguo', () =>
   const cases = [
     ['fallo del 7', /tutte e due le squadre/],
     ['canestro del 14', /non è in squadra/],
-    ['canestro del 25 e del 7', /più numeri/],
+    ['canestro del 25 e del 7', /a chi va il 7/],
     ['canestro del 25 PC52 ospiti', /tutte e due le squadre/],
-    ['il 25 ha fatto', /canestro, fallo, cambio o quintetto/],
-    ['canestro e fallo del 25', /Un comando per volta/],
-    ['tiro sbagliato da 2 del 25', /tiri sbagliati non si segnano ancora/],
-    ['rimbalzo in difesa del 25', /rimbalzi/],
-    ['fallo subito dal 25', /falli subiti/],
-    ['canestro', /Non ho capito chi/],
+    ['il 25 ha fatto', /Non ho capito cosa è successo/],
+    ['canestro e fallo del 25', /Non ho capito chi ha segnato/],
+    ['rimbalzo del 25', /in attacco o in difesa/],
+    ['canestro', /Non ho capito chi ha segnato/],
     ['', /Non ho sentito/],
   ];
   for (const [heard, error] of cases) assert.match(Game.parseCommand(state, heard, 0).error, error, heard);
   for (let i = 0; i < 5; i++) Game.addFoul(state, 0, 'home', 7);
   assert.match(Game.parseCommand(state, 'canestro del 7 PC52', 0).error, /ha già 5 falli/);
+  assert.match(Game.parseCommand(state, 'assist del 7 PC52', 0).error, /ha già 5 falli/);
 });
 
 test('quintetti e cambi: i controlli', () => {
@@ -814,7 +815,9 @@ test('se la prima versione capita non è un comando, vale la prima che lo è', (
   assert.equal(outcome.ok, true);
   assert.equal(outcome.heard, 'canestro del 25');
   const failed = Game.voiceCommand(state, 0, ['ciao', 'buongiorno']);
-  assert.deepEqual(failed, { ok: false, heard: 'ciao', message: 'Non ho capito cosa è successo: canestro, fallo, cambio o quintetto?' });
+  assert.equal(failed.ok, false);
+  assert.equal(failed.heard, 'ciao');
+  assert.match(failed.message, /Non ho capito cosa è successo/);
   assert.equal(state.events.length, 1);
 });
 
@@ -829,10 +832,263 @@ test('la squadra si riconosce anche da una parola sola del suo nome', () => {
   const state = gameWithPlayers();
   state.names.away = 'Virtus Padova';
   state.names.home = 'Basket PC52';
-  const foul7 = (team) => ({ type: 'foul', team, player: 7, count: 1, at: at(1, 10, 0) });
+  const foul7 = (team) => ({ type: 'actions', items: [{ type: 'foul', team, player: 7, count: 1 }], at: at(1, 10, 0) });
   assert.deepEqual(Game.parseCommand(state, 'fallo del 7 Virtus', 0), foul7('away'));
   assert.deepEqual(Game.parseCommand(state, 'fallo del 7 virtus padova', 0), foul7('away'));
   assert.deepEqual(Game.parseCommand(state, 'fallo del 7 basket pc 52', 0), foul7('home'));
   state.names.away = 'Basket Treviso';
   assert.match(Game.parseCommand(state, 'fallo del 7 basket', 0).error, /tutte e due le squadre: di' anche la squadra/, 'Basket è in tutte e due');
+});
+
+// ——— Scout ———
+
+function scoutGame() {
+  const state = voiceGame();
+  for (const [n, name] of [[4, 'Marsico'], [9, 'Verdi'], [23, '']]) Game.addPlayer(state, 'home', n, name);
+  Game.addPlayer(state, 'away', 32);
+  return state;
+}
+
+const items = (state, heard) => {
+  const cmd = Game.parseCommand(state, heard, 0);
+  return cmd.error ?? cmd.items.map((i) => [i.type === 'stat' ? i.kind : i.type, i.team, i.player, i.pts ?? '', i.blocked ? 'stoppato' : '']);
+};
+
+test('lo scout a voce: tiri sbagliati, rimbalzi, assist, recuperi, perse, stoppate, falli subiti', () => {
+  const state = scoutGame();
+  const t = ' al 5 e 00';
+  const cases = [
+    ['tiro da 3 sbagliato di Marsico', [['miss', 'home', 4, 3, '']]],
+    ['tiro libero sbagliato del 25', [['miss', 'home', 25, 1, '']]],
+    ['tiro sbagliato del 25', [['miss', 'home', 25, 2, '']]],
+    ['rimbalzo in difesa del 12', [['dreb', 'away', 12, '', '']]],
+    ['rimbalzo offensivo del 25', [['oreb', 'home', 25, '', '']]],
+    ['assist del 9', [['ast', 'home', 9, '', '']]],
+    ['palla recuperata dal 32', [['stl', 'away', 32, '', '']]],
+    ['palla persa del 23', [['tov', 'home', 23, '', '']]],
+    ['stoppata del 12', [['blk', 'away', 12, '', '']]],
+    ['4 stoppato', [['miss', 'home', 4, 2, 'stoppato']]],
+    ['fallo subito dal 25', [['fd', 'home', 25, '', '']]],
+    ['rimbalzo difensivo ospiti', [['dreb', 'away', undefined, '', '']]],
+  ];
+  for (const [heard, expected] of cases) assert.deepEqual(items(state, heard + t), expected, heard);
+});
+
+test('più azioni in un comando solo, con la squadra ricavata dalle azioni legate', () => {
+  const state = scoutGame();
+  const t = ' al 5 e 00';
+  const cases = [
+    ['numero 23 palla persa recuperata dal numero 32', [['tov', 'home', 23, '', ''], ['stl', 'away', 32, '', '']]],
+    ['palla persa del 23 recuperata dal 32', [['tov', 'home', 23, '', ''], ['stl', 'away', 32, '', '']]],
+    ['canestro del 4 assist del 7', [['score', 'home', 4, 2, ''], ['ast', 'home', 7, '', '']], '7 è in tutte e due: stessa squadra del canestro'],
+    ['fallo del 12 sul 25', [['foul', 'away', 12, '', ''], ['fd', 'home', 25, '', '']]],
+    ['fallo del 7 PC52 sul 7', [['foul', 'home', 7, '', ''], ['fd', 'away', 7, '', '']], 'il 7 che subisce è dell\'altra squadra'],
+    ['stoppata del 12 sul 4', [['blk', 'away', 12, '', ''], ['miss', 'home', 4, 2, 'stoppato']]],
+    ['tiro sbagliato del 25 rimbalzo del 12', [['miss', 'home', 25, 2, ''], ['dreb', 'away', 12, '', '']]],
+    ['tripla sbagliata del 25 rimbalzo del 4', [['miss', 'home', 25, 3, ''], ['oreb', 'home', 4, '', '']]],
+  ];
+  for (const [heard, expected, why] of cases) assert.deepEqual(items(state, heard + t), expected, why ?? heard);
+});
+
+test('il rimbalzo senza «attacco» o «difesa» si capisce dall\'ultimo tiro sbagliato', () => {
+  const state = scoutGame();
+  Game.voiceCommand(state, 0, ['tiro sbagliato del 25 al 5 e 10']);
+  assert.deepEqual(items(state, 'rimbalzo del 12 al 5 e 08'), [['dreb', 'away', 12, '', '']]);
+  assert.deepEqual(items(state, 'rimbalzo del 4 al 5 e 08'), [['oreb', 'home', 4, '', '']]);
+});
+
+test('«annulla» toglie tutte le azioni dell\'ultimo comando', () => {
+  const state = scoutGame();
+  Game.voiceCommand(state, 0, ['canestro del 4 al 6 e 00']);
+  const outcome = Game.voiceCommand(state, 0, ['palla persa del 23 recuperata dal 32 al 5 e 00']);
+  assert.equal(outcome.message, 'Palla persa · #23 PC52 + Palla recuperata · #32 OSPITI · 2–0 · Q1 5:00');
+  assert.equal(state.events.length, 3);
+  const undone = Game.voiceCommand(state, 0, ['annulla']);
+  assert.equal(undone.message, 'Annullato: palla persa #23 PC52 + palla recuperata #32 OSPITI');
+  assert.equal(state.events.length, 1, 'resta il canestro di prima');
+});
+
+test('i comandi non capiti restano nella cronaca con il loro tempo, e non si annullano', () => {
+  const state = scoutGame();
+  Game.voiceCommand(state, 0, ['canestro del 4 al 6 e 00']);
+  const failed = Game.voiceCommand(state, 0, ['boh del 7 al 5 e 30 del secondo quarto']);
+  assert.equal(failed.ok, false);
+  assert.deepEqual(state.notes, [
+    { after: 1, heard: 'boh del 7 al 5 e 30 del secondo quarto', reason: failed.message, period: 2, clockMs: 330_000 },
+  ]);
+  Game.voiceCommand(state, 0, ['annulla']);
+  assert.equal(state.notes.length, 1);
+  const file = Game.gameFile(state, 0);
+  assert.equal(file.non_registrati[0].frase, 'boh del 7 al 5 e 30 del secondo quarto');
+  assert.equal(file.non_registrati[0].tempo, '5:30');
+});
+
+test('lo scout nel tabellino: tiri tentati, rimbalzi, più/meno e valutazione FIBA', () => {
+  const state = scoutGame();
+  const say = (text) => assert.equal(Game.voiceCommand(state, 0, [text]).ok, true, text);
+  say('quintetto 4 7 9 23 25 PC52 inizio primo quarto');
+  say('canestro del 4 assist del 25 al 9 e 00');
+  say('tripla sbagliata del 25 rimbalzo del 12 al 8 e 30');
+  say('canestro del 12 al 8 e 10');
+  say('entra il 1 esce il 4 PC52 al 7 e 00');
+  say('tripla del 25 al 6 e 00');
+  say('palla persa del 25 al 5 e 00');
+  say('stoppata del 9 sul 12 al 4 e 00');
+  say('2 liberi del 25 al 3 e 00');
+  say('tiro libero sbagliato del 25 al 3 e 00');
+  const box = Game.boxScore(state, 0);
+  const p = (n) => box.teams.home.players.find((x) => x.number === n);
+  const rossi = p(25);
+  assert.deepEqual([rossi.pts, rossi.made, rossi.att], [5, [2, 0, 1], [3, 0, 2]]);
+  assert.deepEqual([rossi.ast, rossi.tov], [1, 1]);
+  // 5 punti − 1 tripla − 1 libero sbagliati + 1 assist − 1 palla persa
+  assert.equal(rossi.eff, 3);
+  assert.equal(Game.efficiency(rossi), 3);
+  assert.equal(p(9).blk, 1);
+  assert.equal(box.teams.away.players.find((x) => x.number === 12).blka, 1);
+  // più/meno: il 4 era in campo per il suo canestro (+2) e per quello del 12 (−2), poi è uscito
+  assert.equal(p(4).pm, 0);
+  // il 25 è sempre in campo: +2 −2 +3 +2 = +5
+  assert.equal(p(25).pm, 5);
+  assert.equal(p(1).pm, 5, 'entrato al 7:00: +3 +2');
+  assert.equal(box.teams.away.players[0].pm, null, 'degli ospiti non c\'è il quintetto');
+  const file = Game.gameFile(state, 0);
+  const inFile = file.tabellino.casa.giocatori.find((g) => g.numero === 25);
+  assert.deepEqual(
+    [inFile.t3_segnati, inFile.t3_tentati, inFile.tl_segnati, inFile.tl_tentati, inFile.assist, inFile.piu_meno, inFile.valutazione],
+    [1, 2, 2, 3, 1, 5, 3]
+  );
+  assert.ok(file.azioni.some((a) => a.tipo === 'tiro sbagliato' && a.punti === 3));
+  assert.ok(file.azioni.some((a) => a.tipo === 'tiro sbagliato' && a.stoppato));
+});
+
+// ——— Archivio e statistiche della stagione ———
+
+function archivedGame(date, home, away, commands) {
+  const state = voiceGame();
+  state.names = { home, away };
+  state.date = date;
+  for (const text of commands) assert.equal(Game.voiceCommand(state, 0, [text]).ok, true, text);
+  Game.goToPeriod(state, 5); // partita finita
+  return Game.archiveEntry(state, 0);
+}
+
+test('l\'archivio tiene una partita per giorno e squadre, in ordine di giorno', () => {
+  const a = archivedGame('2026-10-04', 'PC52', 'Virtus', ['canestro del 25 al 5 e 00']);
+  const b = archivedGame('2026-09-27', 'Rovigo', 'PC52', ['canestro del 25 al 5 e 00']);
+  let archive = Game.storeGame(Game.storeGame([], a), b);
+  assert.deepEqual(archive.map((g) => g.id), ['2026-09-27_rovigo_pc52', '2026-10-04_pc52_virtus']);
+  const again = archivedGame('2026-10-04', 'PC52', 'Virtus', ['tripla del 25 al 5 e 00']);
+  archive = Game.storeGame(archive, again);
+  assert.equal(archive.length, 2, 'la stessa partita salvata di nuovo la sostituisce');
+  assert.deepEqual(Game.archiveTeams(archive), ['PC52', 'Rovigo', 'Virtus']);
+});
+
+test('un file della partita o un archivio intero si rileggono; un file qualsiasi no', () => {
+  const state = scoutGame();
+  Game.voiceCommand(state, 0, ['canestro del 25 al 5 e 00']);
+  const fromFile = Game.readGameFile(JSON.parse(JSON.stringify(Game.gameFile(state, 0))));
+  assert.equal(fromFile.length, 1);
+  assert.equal(fromFile[0].dati.events.length, 1);
+  const archive = Game.storeGame([], fromFile[0]);
+  assert.deepEqual(Game.readGameFile(JSON.parse(JSON.stringify(Game.archiveFile(archive)))), archive);
+  assert.equal(Game.readGameFile({ formato: 'altro' }), null);
+  assert.equal(Game.readGameFile({ formato: 'tabellone-basket-partita', dati: { names: 'x' } }), null);
+});
+
+test('le statistiche della stagione: partite giocate, totali, vinte e perse', () => {
+  const g1 = archivedGame('2026-09-27', 'PC52', 'Virtus', [
+    'quintetto 4 7 9 23 25 PC52 inizio primo quarto',
+    'canestro del 25 assist del 7 al 9 e 00',
+    'tripla del 4 al 8 e 00',
+    'canestro del 12 al 7 e 00',
+  ]);
+  const g2 = archivedGame('2026-10-04', 'Rovigo', 'PC52', [
+    'canestro del 25 PC52 al 9 e 00',
+    'tiro sbagliato del 25 PC52 al 8 e 00',
+    'canestro da 3 ospiti al 7 e 00',
+    'tripla casa al 6 e 00',
+    'tripla casa al 5 e 00',
+  ]);
+  const season = Game.seasonStats([g1, g2], 'pc52');
+  assert.deepEqual(
+    [season.record.games, season.record.won, season.record.lost, season.record.pointsFor, season.record.pointsAgainst],
+    [2, 1, 1, 10, 8]
+  );
+  const rossi = season.players.find((p) => p.number === 25);
+  assert.equal(rossi.games, 2);
+  assert.deepEqual([rossi.line.pts, rossi.line.made[1], rossi.line.att[1]], [4, 2, 3]);
+  assert.equal(rossi.secsGames, 1, 'i minuti ci sono solo nella partita con il quintetto');
+  assert.equal(rossi.secs, 40 * 60, 'tutta la prima partita, quattro quarti');
+  const bianchi = season.players.find((p) => p.number === 7);
+  assert.equal(bianchi.games, 1, 'nella seconda partita non ha giocato');
+  assert.equal(bianchi.line.ast, 1);
+  assert.equal(season.players.find((p) => p.number === 9).games, 1, 'era nel quintetto: ha giocato anche senza fare niente');
+});
+
+test('con il tempo detto a voce, una frase senza azione dice che non ha capito l\'azione, non che manca il tempo', () => {
+  const state = voiceGame();
+  assert.match(Game.parseCommand(state, 'boh non so', 0).error, /Non ho capito cosa è successo/);
+  assert.match(Game.parseCommand(state, 'assist del 7 PC52', 0).error, /Manca il tempo/);
+});
+
+// ——— Colore delle maglie ———
+
+function colorGame() {
+  const state = scoutGame();
+  Game.setColor(state, 'home', 'bianco');
+  Game.setColor(state, 'away', 'blu');
+  Game.addPlayer(state, 'home', 15);
+  Game.addPlayer(state, 'home', 24);
+  Game.addPlayer(state, 'away', 3);
+  return state;
+}
+
+test('il colore della maglia vale come il nome della squadra, anche al femminile e al plurale', () => {
+  const state = colorGame();
+  const t = ' al 5 e 00';
+  const cases = [
+    ['numero 12 bianco, tiro da 3 sbagliato', [['miss', 'home', 12, 3, '']]],
+    ['canestro del 7 blu', [['score', 'away', 7, 2, '']]],
+    ['canestro del 7 dei bianchi', [['score', 'home', 7, 2, '']]],
+    ['rimbalzo difensivo bianca', [['dreb', 'home', undefined, '', '']]],
+  ];
+  for (const [heard, expected] of cases) assert.deepEqual(items(state, heard + t), expected, heard);
+});
+
+test('un fallo o una stoppata con chi la fa e chi la subisce, detti con i colori', () => {
+  const state = colorGame();
+  const t = ' al 5 e 00';
+  const cases = [
+    ['fallo del numero 15 bianco sul numero 12 blu', [['foul', 'home', 15, '', ''], ['fd', 'away', 12, '', '']]],
+    ['stoppata del numero 24 bianco sul tiro del numero 3 blu', [['blk', 'home', 24, '', ''], ['miss', 'away', 3, 2, 'stoppato']]],
+    ['stoppata del 24 sul tiro da 3 del 3', [['blk', 'home', 24, '', ''], ['miss', 'away', 3, 3, 'stoppato']]],
+  ];
+  for (const [heard, expected] of cases) assert.deepEqual(items(state, heard + t), expected, heard);
+  Game.voiceCommand(state, 0, ['fallo del numero 15 bianco sul numero 12 blu' + t]);
+  const box = Game.boxScore(state, 0);
+  assert.equal(box.teams.home.players.find((p) => p.number === 15).fouls, 1, 'chi fa il fallo');
+  assert.equal(box.teams.away.players.find((p) => p.number === 12).fd, 1, 'chi lo subisce');
+});
+
+test('un colore che è anche un cognome vale come colore solo accanto a un numero', () => {
+  const state = colorGame();
+  Game.setPlayerName(state, 'home', 7, 'Bianchi');
+  const t = ' al 5 e 00';
+  assert.deepEqual(items(state, 'assist di Bianchi' + t), [['ast', 'home', 7, '', '']], 'il giocatore');
+  assert.deepEqual(items(state, 'canestro del 7 bianchi' + t), [['score', 'home', 7, 2, '']], 'la squadra');
+  assert.deepEqual(items(state, 'canestro del 12 blu' + t), [['score', 'away', 12, 2, '']]);
+});
+
+test('il colore resta con la squadra salvata, nel link delle squadre e nel file della partita', () => {
+  const state = colorGame();
+  const library = Game.saveTeam([], state, 'home');
+  assert.equal(library[0].color, 'bianco');
+  const back = Game.decodeLibrary(Game.encodeLibrary(library));
+  assert.equal(back[0].color, 'bianco');
+  const next = Game.newGame(state.names, { colors: { home: '', away: '' } });
+  Game.loadTeam(next, 'away', back[0]);
+  assert.equal(next.colors.away, 'bianco');
+  assert.equal(Game.gameFile(state, 0).squadre.ospiti.colore, 'blu');
+  assert.equal(Game.gameFromData(Game.archiveEntry(state, 0).dati).colors.home, 'bianco');
 });
