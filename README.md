@@ -33,8 +33,9 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
   Si toglie dall'elenco solo un giocatore senza punti né falli.
   Spenta l'opzione, il tabellone torna come prima, con gli stessi punti.
 - **Colore delle maglie**: in Impostazioni ogni squadra ha il campo «Colore maglia», che compare sotto il nome nel
-  tabellone. Nei comandi vocali il colore vale come il nome della squadra, anche al femminile e al plurale («bianco»
-  vale per bianca, bianchi, bianche). Se il colore è anche il cognome di un giocatore (Bianchi, Rossi), vale come
+  tabellone. Nei comandi vocali il colore vale come il nome della squadra in tutte le sue forme: scritto «bianco»,
+  «bianchi» o «maglia bianca», a voce vale bianco, bianca, bianchi e bianche; con due colori («bianco e rosso») basta
+  dirne uno. Se si dice un colore che non è di nessuna squadra, il tabellone lo dice e spiega dove scriverlo. Se il colore è anche il cognome di un giocatore (Bianchi, Rossi), vale come
   colore solo accanto a un numero: «il 12 dei bianchi» è la squadra, «assist di Bianchi» è il giocatore.
 - **Squadre salvate**: in Impostazioni ogni squadra ha il campo «Nome squadra» (lo stesso nome che compare in alto
   nel tabellone) e «Salva squadra» conserva nome, colore della maglia, numeri e nomi dei giocatori. Nell'elenco «Squadre salvate» ogni
