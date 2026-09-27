@@ -1012,6 +1012,61 @@ input:focus-visible {
   color: var(--away);
 }
 
+/* Il video della partita dentro il tabellone: grande in alto, con la barra dei comandi a voce sotto */
+
+.video-panel {
+  display: grid;
+  gap: 8px;
+  max-width: 1600px;
+  margin: 12px auto 0;
+  padding: 0 16px;
+}
+
+.video-panel video {
+  width: 100%;
+  max-height: calc(100vh - 150px);
+  border-radius: var(--radius);
+  background: #000;
+}
+
+.voice-mode .video-panel video {
+  max-height: calc(100vh - 320px);
+}
+
+.video-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.video-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.video-keys,
+.video-reopen {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.video-reopen {
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--text);
+}
+
+.video-open input {
+  display: none;
+}
+
 /* Un collegamento che sembra un pulsante: «Statistiche», «Tabellone», «Aggiungi file» */
 
 .button-link {
@@ -1033,6 +1088,14 @@ input:focus-visible {
 }
 
 /* I comandi a voce non registrati restano nella cronaca, in grigio */
+
+.log li.seekable {
+  cursor: pointer;
+}
+
+.log li.seekable:hover .who {
+  text-decoration: underline;
+}
 
 .log li.unheard {
   color: var(--muted);

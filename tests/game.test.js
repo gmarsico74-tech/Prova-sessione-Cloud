@@ -1143,3 +1143,25 @@ test('un fallo o una stoppata fra due giocatori della stessa squadra, o con un c
   assert.match(Game.parseCommand(state, 'fallo del numero 4 blu sul numero 6 rosso' + t, 0).error, /«rosso» non è il colore di nessuna squadra/);
   assert.deepEqual(items(state, 'fallo del numero 4 bianco sul numero 6 blu' + t), [['foul', 'home', 4, '', ''], ['fd', 'away', 6, '', '']]);
 });
+
+// ——— Il video dentro il tabellone ———
+
+test('le azioni dette guardando il video ricordano il punto del video, e il file lo riporta', () => {
+  const state = scoutGame();
+  state.video = { name: 'IMG_7001.MOV', positionMs: 0 };
+  Game.voiceCommand(state, 0, ['palla persa del 23 recuperata dal 32 al 5 e 00'], { videoMs: 754_321 });
+  assert.deepEqual(state.events.map((e) => e.videoMs), [754_321, 754_321]);
+  Game.voiceCommand(state, 0, ['boh'], { videoMs: 800_000 });
+  assert.equal(state.notes[0].videoMs, 800_000, 'anche un comando non capito');
+  const file = Game.gameFile(state, 0);
+  assert.deepEqual(file.video, { file: 'IMG_7001.MOV' });
+  assert.equal(file.azioni[0].secondi_video, 754.3);
+  assert.equal(file.non_registrati[0].secondi_video, 800);
+  assert.equal(Game.newGame(state.names, state).video, null, 'una partita nuova parte senza video');
+});
+
+test('il punto del video si scrive in minuti e secondi, e in ore oltre l\'ora', () => {
+  assert.equal(Game.formatVideoTime(754_300), '12:34');
+  assert.equal(Game.formatVideoTime(3_754_000), '1:02:34');
+  assert.equal(Game.formatVideoTime(0), '0:00');
+});

@@ -43,6 +43,7 @@
       events: [],
       date: null, // il giorno della partita, se non è oggi (per esempio quando la si segna guardando il video)
       notes: [], // i comandi a voce non registrati, perché restino nella cronaca
+      video: null, // il video della partita aperto nel tabellone: { name, positionMs }
     };
   }
 
@@ -664,6 +665,15 @@
     return Object.values(l).some((v) => (Array.isArray(v) ? v.some(Boolean) : v !== 0));
   }
 
+  // Il punto di un video: 754300 millisecondi diventano «12:34», oltre l'ora «1:02:34».
+  function formatVideoTime(ms) {
+    const total = Math.floor(ms / 1000);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const sec = String(total % 60).padStart(2, '0');
+    return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
+  }
+
   // I secondi in campo come minuti e secondi: 754 diventa «12:34».
   function formatMinutes(secs) {
     const whole = Math.round(secs);
@@ -880,6 +890,7 @@
         if (e.type === 'score') type = e.pts > 0 ? 'canestro' : 'correzione';
         if (e.type === 'stat') type = STAT_TYPES[e.kind];
         const action = { ...gameTime(e), tipo: type, squadra: SIDES[e.team], nome_squadra: state.names[e.team] };
+        if (e.videoMs !== undefined) action.secondi_video = Math.round(e.videoMs / 100) / 10;
         if (e.player !== undefined) {
           action.numero = e.player;
           action.giocatore = state.playerNames[e.team][e.player] ?? '';
@@ -929,12 +940,20 @@
       data_partita: gameDate(state, now),
       aggancio:
         'Ogni voce è agganciata al tempo del tabellone: il periodo e il tempo che manca alla sua fine ' +
-        '(tempo, ms_restanti). Nel video si ritrova leggendo il tabellone inquadrato; ogni periodo finisce a 0:00.',
+        '(tempo, ms_restanti). Nel video si ritrova leggendo il tabellone inquadrato; ogni periodo finisce a 0:00. ' +
+        'Se la partita è stata segnata guardando il video nel tabellone, secondi_video è il punto del file indicato ' +
+        'in video in cui l\'azione è stata detta.',
       squadre: { casa: roster('home'), ospiti: roster('away') },
       azioni: actions,
       fine_periodi: periodEnds,
       tabellino: boxForFile(boxScore(state, now)),
-      non_registrati: (state.notes ?? []).map((n) => ({ ...gameTime(n), frase: n.heard, motivo: n.reason })),
+      video: state.video ? { file: state.video.name } : null,
+      non_registrati: (state.notes ?? []).map((n) => ({
+        ...gameTime(n),
+        ...(n.videoMs !== undefined ? { secondi_video: Math.round(n.videoMs / 100) / 10 } : {}),
+        frase: n.heard,
+        motivo: n.reason,
+      })),
       dati: gameData(state, now),
     };
   }
@@ -1741,7 +1760,8 @@
   }
 
   // Esegue un comando già controllato e restituisce la frase di conferma da mostrare.
-  function applyCommand(state, now, cmd) {
+  // stamp si aggiunge a ogni azione registrata: per esempio { videoMs }, il punto del video in cui è stata detta.
+  function applyCommand(state, now, cmd, stamp = {}) {
     if (cmd.type === 'undo') {
       const last = state.events[state.events.length - 1];
       if (!last) return 'Niente da annullare.';
@@ -1757,7 +1777,7 @@
     if (cmd.type === 'lineup' || cmd.type === 'sub') {
       const { team } = cmd;
       for (const n of cmd.added) addPlayer(state, team, n);
-      const extra = { group, ...(cmd.added.length ? { added: cmd.added } : {}) };
+      const extra = { group, ...stamp, ...(cmd.added.length ? { added: cmd.added } : {}) };
       const labels = (numbers) => numbers.map((n) => playerLabel(state, team, n)).join(', ');
       const news = cmd.added.length ? ` (${cmd.added.length === 1 ? 'nuovo' : 'nuovi'} in squadra)` : '';
       if (cmd.type === 'lineup') {
@@ -1776,7 +1796,7 @@
           addPlayer(state, team, player);
           added.add(`${team} ${player}`);
         }
-        const extra = { group, ...(isNew ? { added: [player] } : {}) };
+        const extra = { group, ...stamp, ...(isNew ? { added: [player] } : {}) };
         for (let i = 0; i < item.count; i++) {
           const event =
             item.type === 'score'
@@ -1784,7 +1804,7 @@
               : item.type === 'foul'
                 ? { type: 'foul', team }
                 : { type: 'stat', kind: item.kind, team, ...(item.kind === 'miss' ? { pts: item.pts } : {}), ...(item.blocked ? { blocked: true } : {}) };
-          record(state, now, { ...event, ...byPlayer(player), ...(i === 0 ? extra : { group }) }, at);
+          record(state, now, { ...event, ...byPlayer(player), ...(i === 0 ? extra : { group, ...stamp }) }, at);
         }
         const who = player === undefined ? state.names[team] : `${playerLabel(state, team, player)} ${state.names[team]}`;
         const news = isNew ? ' (nuovo in squadra)' : '';
@@ -1806,17 +1826,24 @@
   // vale la prima che è un comando valido. Se nessuna lo è, niente cambia, si dice perché e la frase
   // resta nella cronaca fra i comandi non registrati, così non si perde.
   // now è l'istante in cui si è premuto il microfono: con il tempo dal cronometro, è lì che si legge.
-  function voiceCommand(state, now, alternatives) {
+  function voiceCommand(state, now, alternatives, stamp = {}) {
     let failed = null;
     for (const heard of alternatives) {
       const cmd = parseCommand(state, heard, now);
-      if (!cmd.error) return { ok: true, heard, message: applyCommand(state, now, cmd) };
+      if (!cmd.error) return { ok: true, heard, message: applyCommand(state, now, cmd, stamp) };
       failed ??= { ok: false, heard, message: cmd.error };
     }
     if (!failed) return { ok: false, heard: '', message: 'Non ho sentito niente.' };
     const time = takeTime(state, markTeams(state, ` ${speechWords(clockWords(failed.heard))} `), now, true);
     const at = time.error ? boardTime(state, now) : time.at;
-    state.notes.push({ after: state.events.length, heard: failed.heard, reason: failed.message, period: at.period, clockMs: at.clockMs });
+    state.notes.push({
+      after: state.events.length,
+      heard: failed.heard,
+      reason: failed.message,
+      period: at.period,
+      clockMs: at.clockMs,
+      ...stamp,
+    });
     return failed;
   }
 
@@ -1896,6 +1923,7 @@
     boxScore,
     boxTotals,
     formatMinutes,
+    formatVideoTime,
     gameDate,
     gameStatus,
     encodeBox,

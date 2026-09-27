@@ -15,10 +15,32 @@
           <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
+      <label class="button-link video-open" title="Guarda il video della partita dentro il tabellone">
+        ▶ Video
+        <input type="file" id="video-file" accept="video/*" hidden>
+      </label>
       <button data-action="undo" title="Ctrl+Z">↶ Annulla</button>
       <button data-action="new-game">Nuova partita</button>
     </div>
   </header>
+
+  <section class="video-panel" id="video-panel" hidden>
+    <video id="video" controls playsinline preload="metadata"></video>
+    <p class="video-reopen" id="video-reopen" hidden></p>
+    <div class="video-bar">
+      <span class="video-name" id="video-name"></span>
+      <label class="check">
+        <input type="checkbox" id="video-pause" checked>
+        Pausa mentre parli
+      </label>
+      <button type="button" data-action="close-video">Chiudi video</button>
+    </div>
+    <p class="video-keys">
+      Spazio: avvia e ferma il video · ← →: 5 secondi indietro e avanti (con Maiusc 1 secondo) ·
+      Option (alt) tenuto giù: parla. Ogni azione ricorda anche il punto del video in cui l'hai detta: toccala
+      nella cronaca per rivederla. Per ingrandire usa lo schermo intero del tabellone, in alto a destra.
+    </p>
+  </section>
 
   <main class="board">
     <section class="team home" data-team="home">

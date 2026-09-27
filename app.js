@@ -15,6 +15,7 @@ const clockEl = $('#clock');
 const shotEl = $('#shot');
 const talkBtn = $('#talk');
 const voiceStatus = $('#voice-status');
+const videoEl = $('#video');
 
 // Con i comandi vocali accesi: sulla tastiera del Mac il tasto Option (alt) tenuto giù apre il microfono
 // (il tasto fn il Mac non lo passa alle pagine web) e la barra spaziatrice avvia e ferma il cronometro.
@@ -26,6 +27,9 @@ const CLOCK_KEYS = ['PageUp', 'ArrowLeft', 'ArrowUp'];
 const TAP_MS = 300;
 
 let state = load();
+let videoUrl = null; // il video della partita aperto in questa pagina
+let talkVideo = null; // quando si preme il microfono: { ms } il punto del video, resume se va fatto ripartire
+let videoSavedAt = 0;
 let keyTalk = null; // il tasto del microfono: { since, latched } finché il microfono è aperto da tastiera
 let wakeLock = null; // con i comandi vocali lo schermo resta acceso
 let library = loadLibrary();
@@ -46,6 +50,7 @@ function load() {
       saved.date ??= null; // e prima del giorno della partita
       saved.notes ??= []; // e prima dei comandi non registrati
       saved.colors ??= { home: '', away: '' }; // e prima del colore delle maglie
+      saved.video ??= null; // e prima del video dentro il tabellone
       saved.rosters ??= { home: [], away: [] };
       saved.playerNames ??= { home: {}, away: {} }; // e prima dei nomi
       saved.origins ??= { home: null, away: null }; // e prima di «Modifica»
@@ -91,6 +96,7 @@ function update() {
 
 function render() {
   const { events, period } = state;
+  renderVideo();
   document.body.classList.toggle('player-mode', state.settings.playerMode);
   document.body.classList.toggle('voice-mode', state.settings.voice);
   document.body.classList.toggle('voice-time', state.settings.voice && state.settings.timeSource === 'voice');
@@ -447,7 +453,8 @@ function renderClock() {
   const ms = Game.remainingMs(state.clock, now);
   const running = state.clock.running;
   clockEl.textContent = Game.formatClock(ms);
-  $('#dock-clock').textContent = `${Game.periodLabel(state.period)} ${Game.formatClock(ms)}`;
+  const inVideo = videoUrl !== null ? ` · ▶ ${Game.formatVideoTime(videoEl.currentTime * 1000)}` : '';
+  $('#dock-clock').textContent = `${Game.periodLabel(state.period)} ${Game.formatClock(ms)}${inVideo}`;
   clockEl.classList.toggle('last-minute', ms < 60000);
   clockEl.classList.toggle('expired', ms === 0);
   const shotMs = Game.shotRemainingMs(state.clock, now);
@@ -490,6 +497,12 @@ function renderLog() {
       cell('who', `${who} ${what}`),
       cell('result', `${totals.home}–${totals.away}`)
     );
+    if (e.videoMs !== undefined) {
+      // toccando la riga il video torna a qualche secondo prima dell'azione
+      li.dataset.videoMs = e.videoMs;
+      li.classList.toggle('seekable', videoUrl !== null);
+      li.title = `Nel video a ${Game.formatVideoTime(e.videoMs)}`;
+    }
     return li;
   });
   // i comandi a voce non registrati, in grigio, al punto della cronaca in cui sono stati detti
@@ -579,8 +592,11 @@ function voiceResult({ at, heard, error }) {
     keyTalk = null; // il microfono si è chiuso da solo (per esempio senza permesso): il tasto riparte da capo
     talk?.release();
   }
+  const stamp = talkVideo ? { videoMs: talkVideo.ms } : {};
+  if (talkVideo?.resume) videoEl.play().catch(() => {});
+  talkVideo = null;
   const outcome = heard.length
-    ? Game.voiceCommand(state, at, heard)
+    ? Game.voiceCommand(state, at, heard, stamp)
     : { ok: false, message: Voice.explain(error), heard: '' };
   showVoice(outcome.ok ? 'ok' : 'ko', `${outcome.ok ? '✓' : '✗'} ${outcome.message}`, outcome.ok ? '' : outcome.heard);
   if (outcome.ok) {
@@ -604,6 +620,12 @@ function pressTalk() {
   }
   talkBtn.classList.add('listening');
   showVoice('listening', 'Apro il microfono…');
+  if (videoUrl !== null && !talkVideo) {
+    // il punto del video in cui si comincia a parlare; il video si ferma, così la voce non si mescola al suo audio
+    const resume = $('#video-pause').checked && !videoEl.paused;
+    talkVideo = { ms: Math.round(videoEl.currentTime * 1000), resume };
+    if (resume) videoEl.pause();
+  }
   talk.press(Date.now());
 }
 
@@ -648,6 +670,7 @@ document.addEventListener('click', (e) => {
   const player = row ? Number(row.dataset.player) : undefined;
   const fix = team !== undefined && correcting[team];
   const now = Date.now();
+  const before = state.events.length;
   switch (action) {
     case 'score':
       if (fix) Game.removePoints(state, now, team, Number(btn.dataset.pts), player);
@@ -761,15 +784,116 @@ document.addEventListener('click', (e) => {
       saveLibrary();
       break;
     }
-    case 'new-game':
+    case 'new-game': {
       if (!confirm('Nuova partita? Punteggio, falli, timeout e cronaca verranno azzerati.')) return;
+      const video = videoUrl !== null ? state.video : null; // il video aperto resta aperto
       state = Game.newGame(state.names, state);
+      state.video = video;
       correcting.home = correcting.away = false;
       break;
+    }
+    case 'close-video':
+      closeVideo();
+      return;
   }
   // Una correzione alla volta: dopo il meno la squadra torna ai pulsanti normali.
   if (fix && (action === 'score' || action === 'foul')) correcting[team] = false;
+  // anche le azioni segnate con i pulsanti ricordano il punto del video
+  if (videoUrl !== null) {
+    for (const e of state.events.slice(before)) e.videoMs ??= Math.round(videoEl.currentTime * 1000);
+  }
   update();
+});
+
+// ——— Il video della partita ———
+// Si apre un file dal dispositivo e si guarda dentro il tabellone: tasti e microfono funzionano anche mentre il
+// video è grande (o la pagina è a schermo intero), perché la finestra in primo piano è sempre questa.
+
+function openVideo(file) {
+  if (videoUrl) URL.revokeObjectURL(videoUrl);
+  videoUrl = URL.createObjectURL(file);
+  // lo stesso video riaperto riparte da dove si era arrivati
+  const from = state.video?.name === file.name ? state.video.positionMs : 0;
+  state.video = { name: file.name, positionMs: from };
+  videoEl.src = videoUrl;
+  videoEl.addEventListener(
+    'loadedmetadata',
+    () => {
+      if (from) videoEl.currentTime = from / 1000;
+    },
+    { once: true }
+  );
+  update();
+}
+
+function closeVideo() {
+  videoEl.pause();
+  videoEl.removeAttribute('src');
+  videoEl.load();
+  if (videoUrl) URL.revokeObjectURL(videoUrl);
+  videoUrl = null;
+  state.video = null;
+  update();
+}
+
+function renderVideo() {
+  const loaded = videoUrl !== null;
+  $('#video-panel').hidden = !state.video;
+  document.body.classList.toggle('video-shown', loaded);
+  if (!state.video) return;
+  videoEl.hidden = !loaded;
+  $('#video-name').textContent = state.video.name;
+  const reopen = $('#video-reopen');
+  reopen.hidden = loaded;
+  reopen.textContent = loaded
+    ? ''
+    : `Per continuare riapri il video «${state.video.name}» con il pulsante «▶ Video»: ripartirà da ` +
+      `${Game.formatVideoTime(state.video.positionMs)}.`;
+}
+
+$('#video-file').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (file) openVideo(file);
+});
+
+// il punto a cui si è arrivati resta salvato, per riprendere da lì dopo aver chiuso la pagina
+videoEl.addEventListener('timeupdate', () => {
+  if (!state.video || videoUrl === null) return;
+  state.video.positionMs = Math.round(videoEl.currentTime * 1000);
+  if (Date.now() - videoSavedAt > 2000) {
+    videoSavedAt = Date.now();
+    save();
+  }
+});
+videoEl.addEventListener('pause', save);
+
+// Con il video aperto: spazio avvia e ferma il video, le frecce destra e sinistra lo spostano di 5 secondi
+// (1 con Maiusc). Si ascolta prima di tutto il resto, così il video e il cronometro non reagiscono due volte.
+document.addEventListener(
+  'keydown',
+  (e) => {
+    if (videoUrl === null || e.target.closest('input, select, textarea')) return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!e.repeat) (videoEl.paused ? videoEl.play() : Promise.resolve(videoEl.pause())).catch(() => {});
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      e.stopPropagation();
+      const step = (e.shiftKey ? 1 : 5) * (e.key === 'ArrowLeft' ? -1 : 1);
+      videoEl.currentTime = Math.max(0, videoEl.currentTime + step);
+    }
+  },
+  true
+);
+
+// toccando un'azione della cronaca il video torna a 3 secondi prima, per rivederla
+$('#log').addEventListener('click', (e) => {
+  const row = e.target.closest('li[data-video-ms]');
+  if (!row || videoUrl === null) return;
+  videoEl.currentTime = Math.max(0, Number(row.dataset.videoMs) / 1000 - 3);
+  videoEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
 
 document.addEventListener('keydown', (e) => {
