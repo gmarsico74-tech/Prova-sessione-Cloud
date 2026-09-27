@@ -89,6 +89,18 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
   pagina un tasto apre il microfono (Pagina giù, freccia destra o giù, Invio) e l'altro avvia e ferma il cronometro
   (Pagina su, freccia sinistra o su). Se il telecomando non tiene il tasto premuto ma lo manda e lo lascia subito,
   si preme una volta per aprire il microfono e una volta per chiuderlo.
+- **Video della partita dentro il tabellone**, per segnare una partita guardando il video: il pulsante «▶ Video» in
+  alto apre un file dal dispositivo (per esempio il girato della telecamera) e lo mostra grande sopra il tabellone.
+  Tutto sta in una finestra sola, quindi i tasti funzionano sempre: la barra spaziatrice avvia e ferma il video (il
+  cronometro del tabellone si comanda con il suo pulsante), le frecce destra e sinistra lo spostano di 5 secondi
+  (1 con Maiusc), Option tenuto giù apre il microfono. Per vederlo più grande si usa lo schermo intero del tabellone,
+  il pulsante in alto a destra, e non quello del video, che nasconderebbe la barra del microfono. Con «Pausa mentre
+  parli» il video si ferma mentre si tiene premuto il microfono e riparte al rilascio, così la voce non si mescola
+  al suo audio. Ogni azione, detta o segnata con i pulsanti, ricorda anche il punto del video: nella cronaca basta
+  toccarla per rivederla (il video torna a 3 secondi prima), e nel file della partita c'è `secondi_video`, che il
+  montatore può usare senza leggere il tabellone inquadrato. Chiusa la pagina, il tabellone ricorda il video e il
+  punto a cui si era arrivati: riaprendo lo stesso file si riparte da lì. Con Chrome i video .MOV dell'iPhone a volte
+  non si vedono: in quel caso si usa Safari.
 - **Il tempo delle azioni** è sempre quello del tabellone, periodo e minuti, mai l'ora del giorno. In Impostazioni
   si sceglie da dove viene:
   - **dal cronometro di questo tabellone**: si avvia e si ferma il cronometro, e ogni azione prende il tempo che
@@ -149,6 +161,8 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
 - `fine_periodi`: per ogni periodo finito, il punteggio e il tabellino completo fino a quel momento;
 - `tabellino`: il tabellino completo al momento in cui si scarica il file, con minuti, più/meno e valutazione;
 - `non_registrati`: i comandi a voce non capiti, con la frase sentita e il motivo;
+- `video`: il nome del file del video aperto nel tabellone, se la partita è stata segnata guardandolo; in quel caso
+  ogni azione ha anche `secondi_video`, il punto del video in cui è stata detta o segnata;
 - `dati`: i dati grezzi della partita, da cui la pagina delle statistiche ricalcola tutto.
 
 Ogni voce è agganciata al tempo del tabellone, non all'ora: `periodo` («Q3»), `numero_periodo` (3), `tempo` come si
