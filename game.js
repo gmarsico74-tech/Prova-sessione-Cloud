@@ -184,12 +184,14 @@
   }
 
   // Il cronometro si sposta insieme al video: 5 secondi di video avanti sono 5 secondi di gioco passati.
-  // Vale anche mentre corre; i due cronometri restano fra zero e il loro massimo.
+  // Vale anche mentre corre, e resta fra zero e la durata del periodo. I 24 secondi si spostano solo se
+  // restano fra 0 e 24: dopo un salto lungo e il ritorno non scatta una violazione che non c'è stata.
   function moveClock(state, now, videoMs) {
     const { clock } = state;
-    const clamp = (ms, max) => Math.min(max, Math.max(0, ms));
-    clock.remainingMs = clamp(remainingMs(clock, now) - videoMs, periodLength(state.period));
-    clock.shotMs = clamp(shotRemainingMs(clock, now) - videoMs, SHOT_MS);
+    const game = remainingMs(clock, now) - videoMs;
+    const shot = shotRemainingMs(clock, now) - videoMs;
+    clock.remainingMs = Math.min(periodLength(state.period), Math.max(0, game));
+    clock.shotMs = shot >= 0 && shot <= SHOT_MS ? shot : shotRemainingMs(clock, now);
     clock.startedAt = now;
   }
 
