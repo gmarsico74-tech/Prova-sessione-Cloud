@@ -11,6 +11,10 @@
   const PLAYER_FOUL_LIMIT = 5; // al 5° fallo personale il giocatore esce
   const MAX_PLAYERS = 12;
   const MAX_PLAYERS_FRIENDLY = 16;
+  // Il video della diretta su YouTube arriva a chi guarda qualche secondo dopo il campo: punteggio e cronaca
+  // aspettano altrettanto. Dal telefono YouTube va sempre a bassa latenza, di solito meno di 10 secondi.
+  const YOUTUBE_DELAY_S = 10;
+  const MAX_YOUTUBE_DELAY_S = 120;
 
   function periodLength(period) {
     return period <= 4 ? QUARTER_MS : OVERTIME_MS;
@@ -33,7 +37,15 @@
       names: { ...names },
       // il colore delle maglie: a voce «il 12 bianco» vale come dire la squadra
       colors: { home: setup.colors?.home ?? '', away: setup.colors?.away ?? '' },
-      settings: { playerMode: false, friendly: false, shotClock: false, voice: false, timeSource: 'app', ...setup.settings },
+      settings: {
+        playerMode: false,
+        friendly: false,
+        shotClock: false,
+        voice: false,
+        timeSource: 'app',
+        youtubeDelay: YOUTUBE_DELAY_S, // i secondi di ritardo del video della diretta
+        ...setup.settings,
+      },
       rosters: { home: [...(setup.rosters?.home ?? [])], away: [...(setup.rosters?.away ?? [])] },
       playerNames: { home: { ...setup.playerNames?.home }, away: { ...setup.playerNames?.away } },
       // da quale squadra salvata vengono i giocatori di ciascun lato, per aggiornarla o rinominarla
@@ -44,6 +56,7 @@
       date: null, // il giorno della partita, se non è oggi (per esempio quando la si segna guardando il video)
       notes: [], // i comandi a voce non registrati, perché restino nella cronaca
       video: null, // il video della partita aperto nel tabellone: { name, positionMs }
+      youtube: null, // il codice del video della diretta su YouTube: ogni partita ha la sua diretta
     };
   }
 
@@ -381,9 +394,16 @@
     return `${SHARE_VERSION}.${base64}`;
   }
 
+  // Il codice all'inizio del testo di un link, senza quello che gli è rimasto attaccato dopo: condividendo,
+  // il telefono o il computer mettono il testo del messaggio («PC52 7 – 12 Revolution CF · Q2 10:00») dietro
+  // al link, e incollato nella barra del browser finisce dentro l'indirizzo (con %20 al posto degli spazi).
+  function linkCode(text) {
+    return /^\w*\.[\w-]*/.exec(String(text).trim())?.[0] ?? '';
+  }
+
   // Il contenuto del link; se è rovinato o di un'altra versione lancia un errore.
   function fromLinkText(text) {
-    const [version, data] = String(text).split('.');
+    const [version, data] = linkCode(text).split('.');
     if (version !== SHARE_VERSION || !data) throw new Error('link non valido');
     const binary = atob(data.replace(/-/g, '+').replace(/_/g, '/'));
     return JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0))));
@@ -1035,6 +1055,7 @@
         punteggio: action.punteggio,
       };
     }
+    if (state.youtube) parts.video = { youtube: state.youtube, ritardo: state.settings.youtubeDelay };
     return parts;
   }
 
@@ -1059,6 +1080,45 @@
   function liveClockMs(cronometro, serverNow) {
     if (!cronometro.in_corsa) return cronometro.ms;
     return Math.max(0, cronometro.ms - Math.max(0, serverNow - cronometro.alle));
+  }
+
+  // Il codice del video da un link di YouTube, com'è quando lo si copia dalla diretta sul telefono o sul
+  // computer (youtube.com/live/…, youtu.be/…, youtube.com/watch?v=…), o il codice da solo; null se non è un video.
+  const YOUTUBE_ID = /^[\w-]{11}$/;
+  function youtubeId(text) {
+    const value = String(text ?? '').trim();
+    if (YOUTUBE_ID.test(value)) return value;
+    let url;
+    try {
+      url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    } catch {
+      return null;
+    }
+    const host = url.hostname.toLowerCase().replace(/^(www|m)\./, '');
+    const [, first = '', second = ''] = url.pathname.split('/');
+    let id = null;
+    if (host === 'youtu.be') id = first;
+    else if (host === 'youtube.com' && first === 'watch') id = url.searchParams.get('v');
+    else if (host === 'youtube.com' && ['live', 'embed', 'shorts'].includes(first)) id = second;
+    return YOUTUBE_ID.test(id ?? '') ? id : null;
+  }
+
+  // I secondi di ritardo scritti nel tabellone, interi e dentro i limiti; null se non sono un numero.
+  function youtubeDelay(value) {
+    const text = String(value ?? '').trim().replace(',', '.');
+    const s = Math.round(Number(text));
+    if (text === '' || !Number.isFinite(s)) return null;
+    return Math.min(MAX_YOUTUBE_DELAY_S, Math.max(0, s));
+  }
+
+  // Con il video chi guarda vede la partita in ritardo, e punteggio, tempo e cronaca aspettano lo stesso ritardo,
+  // perché non cambino prima del canestro. Dalle versioni della diretta arrivate, in ordine ({ at }, con l'ora
+  // del server) dà la posizione di quella da mostrare all'istante now: l'ultima arrivata da almeno delayMs, o la
+  // prima se non ce n'è ancora una (appena aperta la pagina si vede subito la partita com'è).
+  function liveDelayedIndex(versions, now, delayMs) {
+    let shown = 0;
+    while (shown + 1 < versions.length && versions[shown + 1].at <= now - delayMs) shown++;
+    return shown;
   }
 
   // ——— L'archivio delle partite, per le statistiche della stagione ———
@@ -1967,6 +2027,8 @@
     PLAYER_FOUL_LIMIT,
     MAX_PLAYERS,
     MAX_PLAYERS_FRIENDLY,
+    YOUTUBE_DELAY_S,
+    MAX_YOUTUBE_DELAY_S,
     periodLength,
     periodLabel,
     newGame,
@@ -2024,6 +2086,7 @@
     statusText,
     encodeBox,
     decodeBox,
+    linkCode,
     efficiency,
     statName,
     gameFile,
@@ -2032,6 +2095,9 @@
     liveChanges,
     liveFeed,
     liveClockMs,
+    youtubeId,
+    youtubeDelay,
+    liveDelayedIndex,
     archiveEntry,
     gameFromData,
     storeGame,

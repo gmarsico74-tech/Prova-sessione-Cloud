@@ -583,6 +583,22 @@ test('il tabellino passa dentro un link e torna uguale; un link rovinato non si 
   assert.equal(Game.decodeBox('rovinato'), null);
 });
 
+test('il link si apre anche con il testo del messaggio attaccato dietro, come quando lo si incolla nel browser', () => {
+  const state = gameWithPlayers();
+  Game.addPoints(state, 0, 'home', 2, 25);
+  const text = Game.encodeBox(Game.boxScore(state, 0), { date: '2026-09-27', status: 'Q2 10:00' });
+  const message = ' PC52 2 – 0 OSPITI · Q2 10:00';
+  const pasted = new URL(`https://gmarsico74-tech.github.io/Prova-sessione-Cloud/tabellino.html#${text}${message}`);
+  assert.match(pasted.hash, /%20PC52%20/, 'nella barra del browser gli spazi diventano %20');
+  for (const hash of [pasted.hash.slice(1), text + message, `${text}\n`, ` ${text}`]) {
+    assert.equal(Game.linkCode(hash), text);
+    assert.equal(Game.boxTotals(Game.decodeBox(hash).teams.home).pts, 2);
+  }
+  const teams = Game.encodeLibrary(LIBRARY);
+  assert.deepEqual(Game.decodeLibrary(`${teams}%20Apri%20il%20link%20per%20aggiungere%20le%20squadre`), LIBRARY);
+  assert.equal(Game.decodeBox(text.slice(0, 30) + message), null, 'un link tagliato resta rovinato');
+});
+
 test('lo stato della partita: periodo e tempo, fine periodo, finale', () => {
   const state = Game.newGame(NAMES);
   assert.equal(Game.gameStatus(state, 0), 'Q1 10:00');
@@ -1288,6 +1304,86 @@ test('la cronaca della diretta torna in ordine di tempo anche con le azioni dett
   );
   assert.equal(Game.liveData(state, 0).stato.tempo_a_voce, true);
   assert.deepEqual(Game.liveFeed(undefined), [], 'una diretta senza azioni');
+});
+
+test('il video della diretta si riconosce da ogni link di YouTube, e il resto no', () => {
+  const id = 'dQw4w9WgXcQ';
+  for (const link of [
+    `https://youtube.com/live/${id}?si=Abc123xyz`,
+    `https://www.youtube.com/live/${id}?feature=share`,
+    `https://youtu.be/${id}?si=Abc123xyz`,
+    `https://www.youtube.com/watch?v=${id}&t=42s`,
+    `https://m.youtube.com/watch?app=desktop&v=${id}`,
+    `https://www.youtube.com/embed/${id}`,
+    `https://youtube.com/shorts/${id}`,
+    `youtube.com/live/${id}`,
+    `  https://youtu.be/${id}\n`,
+    id,
+  ]) {
+    assert.equal(Game.youtubeId(link), id, link);
+  }
+  for (const bad of [
+    '',
+    null,
+    'ciao',
+    'https://www.youtube.com/@pallacanestrocastelfranco/live',
+    'https://www.youtube.com/watch?v=corto',
+    `https://vimeo.com/live/${id}`,
+    `https://youtube.com.example.it/live/${id}`,
+    'https://gmarsico74-tech.github.io/Prova-sessione-Cloud/diretta.html#abcdefghijkm',
+  ]) {
+    assert.equal(Game.youtubeId(bad), null, bad);
+  }
+});
+
+test('i secondi di ritardo del video: interi, da 0 a 120; quello che non è un numero non vale', () => {
+  assert.equal(Game.youtubeDelay('12'), 12);
+  assert.equal(Game.youtubeDelay('7,6'), 8);
+  assert.equal(Game.youtubeDelay(-3), 0);
+  assert.equal(Game.youtubeDelay('500'), Game.MAX_YOUTUBE_DELAY_S);
+  assert.equal(Game.youtubeDelay(''), null);
+  assert.equal(Game.youtubeDelay('dieci'), null);
+});
+
+test('la diretta pubblica il video con il suo ritardo; tolto il video si toglie anche dalla diretta', () => {
+  const state = gameWithPlayers();
+  assert.equal(state.youtube, null);
+  assert.equal(state.settings.youtubeDelay, Game.YOUTUBE_DELAY_S);
+  const before = Game.liveData(state, 0);
+  assert.equal(before.video, undefined, 'senza video la diretta è quella di prima');
+  state.youtube = 'dQw4w9WgXcQ';
+  state.settings.youtubeDelay = 14;
+  const after = Game.liveData(state, 0);
+  assert.deepEqual(Game.liveChanges(before, after), { video: { youtube: 'dQw4w9WgXcQ', ritardo: 14 } });
+  state.youtube = null;
+  assert.deepEqual(Game.liveChanges(after, Game.liveData(state, 0)), { video: null });
+});
+
+test('una nuova partita toglie il video della diretta e tiene i secondi di ritardo', () => {
+  const state = gameWithPlayers();
+  state.youtube = 'dQw4w9WgXcQ';
+  state.settings.youtubeDelay = 18;
+  const next = Game.newGame(state.names, state);
+  assert.equal(next.youtube, null);
+  assert.equal(next.settings.youtubeDelay, 18);
+});
+
+test('con il ritardo chi guarda vede la versione della diretta arrivata da almeno quei secondi', () => {
+  const versions = [{ at: 1_000 }, { at: 5_000 }, { at: 9_000 }, { at: 20_000 }];
+  assert.equal(Game.liveDelayedIndex(versions, 9_000, 0), 2, 'senza ritardo l\'ultima arrivata');
+  assert.equal(Game.liveDelayedIndex(versions, 20_000, 10_000), 2, 'con 10 secondi quella arrivata 11 secondi fa');
+  assert.equal(Game.liveDelayedIndex(versions, 18_999, 10_000), 1, 'quella di 9 secondi fa aspetta ancora');
+  assert.equal(Game.liveDelayedIndex(versions, 30_000, 10_000), 3);
+  assert.equal(Game.liveDelayedIndex(versions, 1_000, 10_000), 0, 'appena aperta la pagina, la prima arrivata');
+  assert.equal(Game.liveDelayedIndex([{ at: 50_000 }], 50_000, 10_000), 0);
+});
+
+test('con il ritardo il cronometro di chi guarda è quello di qualche secondo fa', () => {
+  const state = Game.newGame(NAMES);
+  Game.startClock(state.clock, 1_000);
+  const { cronometro } = Game.liveData(state, 1_000).stato; // pubblicato quando parte, a 10:00
+  assert.equal(Game.liveClockMs(cronometro, 31_000 - 10_000), 580_000, 'a 30 secondi dal via, con 10 di ritardo');
+  assert.equal(Game.liveClockMs(cronometro, 5_000 - 10_000), 600_000, 'nel video non è ancora partito');
 });
 
 test('lo stato che legge chi guarda: periodo e tempo, fine periodo, finale', () => {

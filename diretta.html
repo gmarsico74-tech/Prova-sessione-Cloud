@@ -13,6 +13,21 @@
   </header>
 
   <main class="board live-board" hidden>
+    <section class="live-video" id="live-video" hidden>
+      <div class="video-frame" id="video-frame"></div>
+      <div class="delay-row">
+        <span>Punteggio, tempo e cronaca aspettano il video: <strong id="delay">10&nbsp;s</strong></span>
+        <span class="delay-buttons">
+          <button type="button" data-delay="-1" aria-label="Un secondo di ritardo in meno">−1 s</button>
+          <button type="button" data-delay="1" aria-label="Un secondo di ritardo in più">+1 s</button>
+        </span>
+      </div>
+      <p class="video-help">
+        Se il punteggio cambia prima del canestro, premi +1 s; se arriva molto dopo, −1 s.
+        Il video qui non parte? <a id="youtube-link" target="_blank" rel="noopener">Aprilo su YouTube</a>.
+      </p>
+    </section>
+
     <section class="team home" data-side="home">
       <h2 class="team-name" data-role="name"></h2>
       <span class="team-color" data-role="color" hidden></span>
