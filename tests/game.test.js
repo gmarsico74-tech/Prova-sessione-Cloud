@@ -1196,3 +1196,104 @@ test('il punto del video si scrive in minuti e secondi, e in ore oltre l\'ora', 
   assert.equal(Game.formatVideoTime(3_754_000), '1:02:34');
   assert.equal(Game.formatVideoTime(0), '0:00');
 });
+
+// ——— La diretta ———
+
+test('la diretta pubblica punteggio, periodo, cronometro, falli, timeout e il tabellino del link', () => {
+  const state = gameWithPlayers();
+  state.colors.home = 'bianco';
+  Game.addPoints(state, 0, 'home', 3, 25);
+  Game.addFoul(state, 0, 'away', 12);
+  Game.takeTimeout(state, 0, 'away');
+  const live = Game.liveData(state, 0);
+  assert.deepEqual(live.stato.casa, { nome: 'PC52', colore: 'bianco', punti: 3, falli: 0, timeout: 2, timeout_max: 2 });
+  assert.deepEqual(live.stato.ospiti, { nome: 'OSPITI', colore: '', punti: 0, falli: 1, timeout: 1, timeout_max: 2 });
+  assert.equal(live.stato.numero_periodo, 1);
+  assert.deepEqual(live.stato.cronometro, { ms: 600_000, in_corsa: false });
+  assert.equal(live.stato.tempo_a_voce, false);
+  const box = Game.decodeBox(live.tabellino);
+  assert.equal(box.teams.home.players.find((p) => p.number === 25).name, 'Rossi');
+  assert.equal(Game.boxTotals(box.teams.home).pts, 3);
+});
+
+test('nella diretta il cronometro che corre viaggia con l\'istante del server, e chi guarda lo fa scorrere', () => {
+  const state = Game.newGame(NAMES);
+  Game.startClock(state.clock, 1_000);
+  const { cronometro } = Game.liveData(state, 11_000, 500).stato;
+  assert.deepEqual(cronometro, { ms: 590_000, in_corsa: true, alle: 11_500 });
+  assert.equal(Game.liveClockMs(cronometro, 11_500), 590_000);
+  assert.equal(Game.liveClockMs(cronometro, 21_500), 580_000);
+  assert.equal(Game.liveClockMs(cronometro, 11_000), 590_000, 'mai più tempo di quello pubblicato');
+  assert.equal(Game.liveClockMs(cronometro, 700_000), 0);
+  assert.equal(Game.liveClockMs({ ms: 42_000, in_corsa: false }, 999_999), 42_000);
+});
+
+test('la cronaca della diretta ha canestri, falli, timeout, quintetti e cambi, non lo scout né le azioni corrette', () => {
+  const state = voiceGame();
+  Game.voiceCommand(state, 0, ['quintetto 25 7 1 2 3 PC52 inizio primo quarto']);
+  Game.voiceCommand(state, 0, ['tiro sbagliato del 25, rimbalzo del 12 al 9 e 40']);
+  Game.voiceCommand(state, 0, ['tripla del 25 al 9 e 30']);
+  Game.voiceCommand(state, 0, ['canestro del 7 al 9 e 00']);
+  Game.removePoints(state, 0, 'home', 2, 7);
+  Game.voiceCommand(state, 0, ['fallo del 12 al 8 e 30']);
+  const feed = Game.liveFeed(
+    Object.fromEntries(
+      Object.entries(Game.liveData(state, 0))
+        .filter(([path]) => path.startsWith('cronaca/'))
+        .map(([path, a]) => [path.slice('cronaca/'.length), a])
+    )
+  );
+  assert.deepEqual(
+    feed.map((a) => [a.tipo, a.scritta, a.punteggio.casa]),
+    [
+      ['quintetto', 'In campo PC52: #1, #2, #3, #7 Bianchi, #25 Rossi', 0],
+      ['canestro', 'Tripla · #25 Rossi', 3],
+      ['fallo', 'Fallo · #12 De Luca (1°)', 3],
+    ]
+  );
+  assert.deepEqual([feed[1].numero_periodo, feed[1].ms_restanti, feed[1].squadra], [1, 570_000, 'casa']);
+});
+
+test('nella diretta ogni azione tiene la sua chiave, e dopo un\'azione o un «annulla» cambia solo quello che serve', () => {
+  const state = gameWithPlayers();
+  Game.addPoints(state, 0, 'home', 2, 25);
+  const before = Game.liveData(state, 0);
+  assert.deepEqual(Object.keys(before).filter((p) => p.startsWith('cronaca/')), ['cronaca/a0']);
+  Game.addPoints(state, 0, 'away', 3, 12);
+  const after = Game.liveData(state, 0);
+  const changes = Game.liveChanges(before, after);
+  assert.deepEqual(Object.keys(changes).sort(), ['cronaca/a1', 'stato', 'tabellino']);
+  assert.equal(changes['cronaca/a1'].scritta, 'Tripla · #12 De Luca');
+  Game.undo(state);
+  assert.deepEqual(Game.liveChanges(after, Game.liveData(state, 0)), {
+    stato: before.stato,
+    tabellino: before.tabellino,
+    'cronaca/a1': null,
+  });
+  assert.deepEqual(Game.liveChanges(before, Game.liveData(state, 0)), {}, 'niente da mandare se non cambia niente');
+});
+
+test('la cronaca della diretta torna in ordine di tempo anche con le azioni dette fuori ordine', () => {
+  const state = voiceGame();
+  Game.voiceCommand(state, 0, ['canestro del 25 al 5 e 00 del terzo quarto']);
+  Game.voiceCommand(state, 0, ['tripla del 25 al 8 e 10 del terzo quarto']); // detta dopo, avvenuta prima
+  Game.voiceCommand(state, 0, ['fallo del 12 al 5 e 00 del terzo quarto']); // stesso tempo del canestro, detta dopo
+  const cronaca = {};
+  for (const [path, a] of Object.entries(Game.liveData(state, 0))) {
+    if (path.startsWith('cronaca/')) cronaca[path.slice('cronaca/'.length)] = a;
+  }
+  assert.deepEqual(
+    Game.liveFeed(cronaca).map((a) => [a.scritta, a.punteggio.casa]),
+    [['Tripla · #25 Rossi', 3], ['Canestro da 2 · #25 Rossi', 5], ['Fallo · #12 De Luca (1°)', 5]]
+  );
+  assert.equal(Game.liveData(state, 0).stato.tempo_a_voce, true);
+  assert.deepEqual(Game.liveFeed(undefined), [], 'una diretta senza azioni');
+});
+
+test('lo stato che legge chi guarda: periodo e tempo, fine periodo, finale', () => {
+  assert.equal(Game.statusText(3, 252_000, false), 'Q3 4:12');
+  assert.equal(Game.statusText(2, 0, false), 'Fine Q2');
+  assert.equal(Game.statusText(4, 0, true), 'Fine Q4');
+  assert.equal(Game.statusText(4, 0, false), 'Finale');
+  assert.equal(Game.statusText(5, 0, false), 'Finale');
+});

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Diretta</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="diretta">
+  <header class="topbar">
+    <h1>Diretta</h1>
+    <p id="live-state" class="live-state" aria-live="polite">Collegamento alla diretta…</p>
+  </header>
+
+  <main class="board live-board" hidden>
+    <section class="team home" data-side="home">
+      <h2 class="team-name" data-role="name"></h2>
+      <span class="team-color" data-role="color" hidden></span>
+      <output class="score" data-role="score">0</output>
+      <div class="stat">
+        <span class="stat-label">Falli</span>
+        <strong class="stat-value" data-role="fouls">0</strong>
+        <span class="bonus" data-role="bonus" hidden>BONUS</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Timeout</span>
+        <span class="dots" data-role="timeouts"></span>
+      </div>
+    </section>
+
+    <section class="center">
+      <div class="center-inner">
+        <div id="period" class="period">Q1</div>
+        <div id="clock" class="clock" role="timer">10:00</div>
+        <p id="status" class="live-status"></p>
+      </div>
+    </section>
+
+    <section class="team away" data-side="away">
+      <h2 class="team-name" data-role="name"></h2>
+      <span class="team-color" data-role="color" hidden></span>
+      <output class="score" data-role="score">0</output>
+      <div class="stat">
+        <span class="stat-label">Falli</span>
+        <strong class="stat-value" data-role="fouls">0</strong>
+        <span class="bonus" data-role="bonus" hidden>BONUS</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Timeout</span>
+        <span class="dots" data-role="timeouts"></span>
+      </div>
+    </section>
+
+    <section class="log-panel">
+      <h2>Cronaca</h2>
+      <ol id="feed" class="log live-feed"></ol>
+    </section>
+
+    <section class="box-panel">
+      <h2>Tabellino</h2>
+      <div id="box" class="box"></div>
+      <p class="published-foot">
+        MIN minuti in campo · PT punti · TL tiri liberi segnati · T2 canestri da 2 · T3 canestri da 3 · F falli.
+        Fatto con il <a href="./">Tabellone Basket</a>.
+      </p>
+    </section>
+  </main>
+
+  <script src="game.js"></script>
+  <script src="tabellino.js"></script>
+  <script src="live.js"></script>
+  <script src="diretta.js"></script>
+</body>
+</html>

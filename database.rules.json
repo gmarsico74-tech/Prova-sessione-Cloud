@@ -1,0 +1,11 @@
+{
+  "rules": {
+    "dirette": {
+      "$diretta": {
+        ".read": true,
+        ".write": "auth != null && auth.token.email === 'gmarsico74@gmail.com' && auth.token.email_verified === true",
+        ".validate": "$diretta.matches(/^[a-z0-9]{12}$/)"
+      }
+    }
+  }
+}

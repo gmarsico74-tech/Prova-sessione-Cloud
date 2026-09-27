@@ -705,10 +705,14 @@
   // Com'è la partita: «Finale» a tempo scaduto dal quarto periodo in poi senza parità,
   // «Fine Q2» a tempo scaduto negli altri casi, altrimenti periodo e tempo («Q3 4:12»).
   function gameStatus(state, now) {
-    const ms = remainingMs(state.clock, now);
     const tied = score(state.events, 'home') === score(state.events, 'away');
-    if (ms > 0) return `${periodLabel(state.period)} ${formatClock(ms)}`;
-    return state.period >= 4 && !tied ? 'Finale' : `Fine ${periodLabel(state.period)}`;
+    return statusText(state.period, remainingMs(state.clock, now), tied);
+  }
+
+  // Lo stesso calcolo per la diretta, dove chi guarda ha solo periodo, tempo e punteggio.
+  function statusText(period, ms, tied) {
+    if (ms > 0) return `${periodLabel(period)} ${formatClock(ms)}`;
+    return period >= 4 && !tied ? 'Finale' : `Fine ${periodLabel(period)}`;
   }
 
   // Il tabellino viaggia in un link, come le squadre: giorno e stato li aggiunge chi lo pubblica.
@@ -888,14 +892,14 @@
     };
   }
 
-  // Tutto quello che serve al montatore per scrivere in sovrimpressione chi segna e chi fa fallo, alla fine
-  // di ogni periodo il tabellino, e all'archivio per le statistiche della stagione. Ogni voce è agganciata
-  // al tempo del tabellone, non all'ora: nel video si ritrova leggendo il tabellone inquadrato.
-  function gameFile(state, now) {
+  // Le azioni rimaste valide, in ordine di tempo di gioco, ciascuna con la sua voce per il file:
+  // punteggio dopo l'azione, falli del giocatore fino a lì e la scritta per la sovrimpressione.
+  // Servono al file della partita e alla cronaca della diretta, che tiene anche l'azione (event).
+  function timedActions(state) {
     const running = { home: 0, away: 0 };
     const fouls = {};
     const players = (team, numbers) => numbers.map((n) => ({ numero: n, nome: state.playerNames[team][n] ?? '' }));
-    const actions = standingEvents(state.events)
+    return standingEvents(state.events)
       .sort(byGameTime)
       .map((e) => {
         let type = ACTION_TYPES[e.type];
@@ -927,8 +931,16 @@
         }
         action.punteggio = { casa: running.home, ospiti: running.away };
         action.scritta = actionText(state, e, action.falli_giocatore);
-        return action;
+        return { event: e, action };
       });
+  }
+
+  // Tutto quello che serve al montatore per scrivere in sovrimpressione chi segna e chi fa fallo, alla fine
+  // di ogni periodo il tabellino, e all'archivio per le statistiche della stagione. Ogni voce è agganciata
+  // al tempo del tabellone, non all'ora: nel video si ritrova leggendo il tabellone inquadrato.
+  function gameFile(state, now) {
+    const players = (team, numbers) => numbers.map((n) => ({ numero: n, nome: state.playerNames[team][n] ?? '' }));
+    const actions = timedActions(state).map(({ action }) => action);
     const end = gameEnd(state, now);
     const periodEnds = [];
     for (let period = 1; period <= end.period; period++) {
@@ -977,6 +989,76 @@
 
   function gameFileName(state, now) {
     return `partita_${slug(state.names.home)}_${slug(state.names.away)}_${gameDate(state, now)}.json`;
+  }
+
+  // ——— La diretta: la partita seguita da un altro dispositivo, con Firebase (live.js) ———
+
+  // Nella cronaca della diretta vanno canestri, falli, timeout, quintetti e cambi; lo scout resta nel tabellone.
+  const LIVE_TYPES = new Set(['score', 'foul', 'timeout', 'lineup', 'sub']);
+
+  // Quello che si pubblica, a pezzi con il loro percorso nel database: si mandano solo i pezzi che cambiano.
+  // Il cronometro viaggia come tempo restante in un istante (alle, nell'ora del server, se corre):
+  // chi guarda lo fa scorrere da sé. Ogni azione della cronaca ha per chiave la sua posizione fra le
+  // azioni, che non cambia mai, perché le nuove si aggiungono in coda e «annulla» toglie le ultime.
+  // Il tabellino è quello del link di tabellino.html, senza stato: così non cambia a ogni secondo.
+  function liveData(state, now, serverOffset = 0) {
+    const ms = remainingMs(state.clock, now);
+    const side = (team) => ({
+      nome: state.names[team],
+      colore: state.colors[team] ?? '',
+      punti: score(state.events, team),
+      falli: teamFouls(state.events, team, state.period),
+      timeout: timeoutsLeft(state.events, team, state.period),
+      timeout_max: timeoutWindow(state.period).max,
+    });
+    const parts = {
+      stato: {
+        giorno: gameDate(state, now),
+        casa: side('home'),
+        ospiti: side('away'),
+        numero_periodo: state.period,
+        cronometro:
+          state.clock.running && ms > 0 ? { ms, in_corsa: true, alle: now + serverOffset } : { ms, in_corsa: false },
+        tempo_a_voce: state.settings.timeSource === 'voice',
+      },
+      tabellino: encodeBox(boxScore(state, now), { date: gameDate(state, now), status: '' }),
+    };
+    const position = new Map(state.events.map((e, i) => [e, i]));
+    for (const { event, action } of timedActions(state)) {
+      if (!LIVE_TYPES.has(event.type)) continue;
+      parts[`cronaca/a${position.get(event)}`] = {
+        numero_periodo: action.numero_periodo,
+        ms_restanti: action.ms_restanti,
+        squadra: action.squadra,
+        tipo: action.tipo,
+        scritta: action.scritta,
+        punteggio: action.punteggio,
+      };
+    }
+    return parts;
+  }
+
+  // Cosa scrivere nel database per passare da prima a dopo: i pezzi nuovi o cambiati, null per quelli spariti.
+  function liveChanges(before, after) {
+    const changes = {};
+    for (const [path, value] of Object.entries(after)) {
+      if (JSON.stringify(before[path]) !== JSON.stringify(value)) changes[path] = value;
+    }
+    for (const path of Object.keys(before)) if (!(path in after)) changes[path] = null;
+    return changes;
+  }
+
+  // La cronaca come la legge chi guarda: in ordine di tempo di gioco, a pari tempo nell'ordine in cui è stata segnata.
+  function liveFeed(cronaca) {
+    return Object.entries(cronaca ?? {})
+      .map(([key, a]) => ({ ...a, posizione: Number(key.slice(1)) }))
+      .sort((a, b) => a.numero_periodo - b.numero_periodo || b.ms_restanti - a.ms_restanti || a.posizione - b.posizione);
+  }
+
+  // Il tempo che resta sul telefono di chi guarda: se il cronometro corre, scorre da quando è stato pubblicato.
+  function liveClockMs(cronometro, serverNow) {
+    if (!cronometro.in_corsa) return cronometro.ms;
+    return Math.max(0, cronometro.ms - Math.max(0, serverNow - cronometro.alle));
   }
 
   // ——— L'archivio delle partite, per le statistiche della stagione ———
@@ -1939,12 +2021,17 @@
     formatVideoTime,
     gameDate,
     gameStatus,
+    statusText,
     encodeBox,
     decodeBox,
     efficiency,
     statName,
     gameFile,
     gameFileName,
+    liveData,
+    liveChanges,
+    liveFeed,
+    liveClockMs,
     archiveEntry,
     gameFromData,
     storeGame,
