@@ -49,11 +49,13 @@ function load() {
       saved.settings.shotClock ??= false; // e prima che i 24 secondi fossero facoltativi
       saved.settings.voice ??= false; // e prima dei comandi vocali
       saved.settings.timeSource ??= 'app'; // e prima del tempo detto a voce
+      saved.settings.youtubeDelay ??= Game.YOUTUBE_DELAY_S; // e prima del video della diretta
       saved.date ??= null; // e prima del giorno della partita
       saved.notes ??= []; // e prima dei comandi non registrati
       saved.colors ??= { home: '', away: '' }; // e prima del colore delle maglie
       saved.video ??= null; // e prima del video dentro il tabellone
       saved.live ??= null; // e prima della diretta
+      saved.youtube ??= null;
       saved.rosters ??= { home: [], away: [] };
       saved.playerNames ??= { home: {}, away: {} }; // e prima dei nomi
       saved.origins ??= { home: null, away: null }; // e prima di «Modifica»
@@ -427,7 +429,7 @@ function shareLive() {
   const { home, away } = state.names;
   shareUrl(Live.link(state.live.id), {
     title: `Diretta ${home} – ${away}`,
-    text: `${home} – ${away} in diretta: punteggio, tempo e cronaca.`,
+    text: `${home} – ${away} in diretta: ${state.youtube ? 'video, ' : ''}punteggio, tempo e cronaca.`,
     note: $('#box-note'),
     copied: 'Link della diretta copiato: incollalo nel gruppo della squadra.',
     ask: 'Copia il link della diretta:',
@@ -456,7 +458,43 @@ function renderLive() {
   startBtn.textContent = stopped ? 'Riprendi diretta' : 'Avvia diretta';
   $('.live-actions [data-action="live-share"]').hidden = !on;
   $('[data-action="live-stop"]').hidden = !on;
+  // un link sbagliato resta scritto finché non lo si corregge
+  const link = $('#live-youtube');
+  if (document.activeElement !== link && link.getAttribute('aria-invalid') !== 'true') {
+    link.value = state.youtube ? `https://youtu.be/${state.youtube}` : '';
+  }
+  const delay = $('#live-delay');
+  if (document.activeElement !== delay) delay.value = state.settings.youtubeDelay;
 }
+
+// Il video della diretta: si incolla il link che YouTube dà con «Condividi»; vuoto, la diretta è senza video.
+$('#live-youtube').addEventListener('change', (e) => {
+  const field = e.target;
+  const note = $('#box-note');
+  const text = field.value.trim();
+  const id = Game.youtubeId(text);
+  field.setAttribute('aria-invalid', String(Boolean(text) && !id));
+  if (text && !id) {
+    note.textContent = 'Questo non è il link di un video di YouTube: nella diretta di YouTube premi «Condividi» e copia il link.';
+    return;
+  }
+  if (id === state.youtube) {
+    note.textContent = '';
+    return;
+  }
+  state.youtube = id;
+  update();
+  if (!id) note.textContent = 'Video tolto: la diretta mostra solo punteggio, tempo e cronaca.';
+  else if (state.live) note.textContent = 'Video aggiunto: chi segue la diretta lo vede sopra il punteggio.';
+  else note.textContent = 'Video pronto: con «Avvia diretta» chi la segue lo vede sopra il punteggio.';
+});
+
+$('#live-delay').addEventListener('change', (e) => {
+  const seconds = Game.youtubeDelay(e.target.value);
+  if (seconds !== null) state.settings.youtubeDelay = seconds;
+  e.target.value = state.settings.youtubeDelay;
+  update();
+});
 
 Live.init({
   getState: () => state,
@@ -904,11 +942,18 @@ document.addEventListener('click', (e) => {
       if (!confirm('Nuova partita? Punteggio, falli, timeout e cronaca verranno azzerati.')) return;
       const video = videoUrl !== null ? state.video : null; // il video aperto resta aperto
       const wasLive = Boolean(state.live);
-      state = Game.newGame(state.names, state); // la diretta è di una partita: la nuova ne ha una sua
+      const hadYoutube = Boolean(state.youtube);
+      state = Game.newGame(state.names, state); // la diretta e il suo video sono di una partita: la nuova ne ha di suoi
       state.video = video;
       clockHeld = false;
       correcting.home = correcting.away = false;
-      if (wasLive) $('#box-note').textContent = 'La diretta della partita di prima è chiusa: per questa premi «Avvia diretta».';
+      $('#live-youtube').removeAttribute('aria-invalid');
+      if (wasLive) {
+        $('#box-note').textContent =
+          `La diretta della partita di prima è chiusa: per questa premi «Avvia diretta»${hadYoutube ? ' e incolla il link del nuovo video' : ''}.`;
+      } else if (hadYoutube) {
+        $('#box-note').textContent = 'Il video di YouTube era della partita di prima: per questa incolla il link nuovo.';
+      }
       break;
     }
     case 'close-video':

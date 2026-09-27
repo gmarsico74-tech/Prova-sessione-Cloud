@@ -2,11 +2,18 @@
 
 // La pagina di chi segue la partita: legge la diretta da Firebase (live.js) e la ridisegna a ogni cambiamento.
 // Il cronometro scorre qui, dal tempo restante pubblicato dal tabellone e dall'istante in cui lo ha pubblicato.
+// Con il video di YouTube la partita qui si vede qualche secondo dopo il campo: punteggio, tempo e cronaca
+// aspettano lo stesso ritardo, perché non cambino prima del canestro.
 
 const $ = (selector, el = document) => el.querySelector(selector);
 const SIDES = { home: 'casa', away: 'ospiti' };
+const DELAY_KEY = 'tabellone-ritardo'; // la correzione del ritardo fatta da chi guarda, per l'ultima diretta aperta
 
-let live; // la diretta come l'ha scritta il tabellone; null se non c'è
+let latest; // l'ultima diretta arrivata; undefined finché non arriva, null se non c'è
+let live; // la diretta che si mostra: con il video quella di qualche secondo fa
+let versions = []; // le versioni arrivate, in ordine: { at, doc }, con l'ora del server in cui sono arrivate
+let liveId = '';
+let myDelay = 0; // i secondi che chi guarda aggiunge o toglie al ritardo scritto nel tabellone
 let serverNow = () => Date.now();
 let online = false;
 let everOnline = false;
@@ -35,10 +42,81 @@ function renderState() {
   showState(`● In diretta · ${day}`, 'live');
 }
 
+// Il video della diretta, se il tabellone ne ha scritto uno valido.
+function youtube() {
+  return latest ? Game.youtubeId(latest.video?.youtube) : null;
+}
+
+// Il ritardo con cui si mostra la diretta: quello del tabellone più la correzione di chi guarda; senza video nessuno.
+function delaySeconds() {
+  if (!youtube()) return 0;
+  const base = Game.youtubeDelay(latest.video.ritardo) ?? Game.YOUTUBE_DELAY_S;
+  return Math.min(Game.MAX_YOUTUBE_DELAY_S, Math.max(0, base + myDelay));
+}
+
+// Sceglie la versione da mostrare adesso e scarta quelle più vecchie; true se è cambiata.
+function pick() {
+  if (versions.length === 0) return false;
+  versions.splice(0, Game.liveDelayedIndex(versions, serverNow(), delaySeconds() * 1000));
+  if (live === versions[0].doc) return false;
+  live = versions[0].doc;
+  return true;
+}
+
+function loadMyDelay() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DELAY_KEY));
+    return saved?.id === liveId && Number.isFinite(saved.s) ? saved.s : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveMyDelay() {
+  try {
+    localStorage.setItem(DELAY_KEY, JSON.stringify({ id: liveId, s: myDelay }));
+  } catch {
+    // senza storage la correzione vale finché la pagina è aperta
+  }
+}
+
+function changeDelay(step) {
+  if (!youtube()) return;
+  const base = delaySeconds() - myDelay;
+  myDelay = Math.min(Game.MAX_YOUTUBE_DELAY_S, Math.max(0, delaySeconds() + step)) - base;
+  saveMyDelay();
+  pick();
+  render();
+}
+
+function player(id) {
+  const frame = document.createElement('iframe');
+  frame.src = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&playsinline=1&rel=0`;
+  frame.title = 'Il video della partita';
+  frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+  frame.allowFullscreen = true;
+  frame.referrerPolicy = 'strict-origin-when-cross-origin'; // YouTube vuole sapere da quale sito si guarda
+  return frame;
+}
+
+// Il video sopra il punteggio: il riquadro si ricrea solo quando cambia il video, non a ogni aggiornamento.
+function renderVideo() {
+  const id = youtube();
+  $('#live-video').hidden = !id;
+  $('.live-board').classList.toggle('with-video', Boolean(id));
+  const frame = $('#video-frame');
+  if (frame.dataset.id !== (id ?? '')) {
+    frame.dataset.id = id ?? '';
+    frame.replaceChildren(...(id ? [player(id)] : []));
+    if (id) $('#youtube-link').href = `https://www.youtube.com/watch?v=${id}`;
+  }
+  $('#delay').textContent = `${delaySeconds()}\u00a0s`;
+}
+
 function renderClock() {
   if (!live) return;
   const { stato } = live;
-  const ms = Game.liveClockMs(stato.cronometro, serverNow());
+  const ms = Game.liveClockMs(stato.cronometro, serverNow() - delaySeconds() * 1000);
   const running = stato.cronometro.in_corsa && ms > 0;
   const clock = $('#clock');
   clock.textContent = Game.formatClock(ms);
@@ -93,6 +171,7 @@ function render() {
   const board = $('.live-board');
   board.hidden = !live;
   if (!live) return;
+  renderVideo();
   const { casa, ospiti, numero_periodo: period } = live.stato;
   document.title = `${casa.nome} ${casa.punti} – ${ospiti.punti} ${ospiti.nome}`;
   $('#period').textContent = Game.periodLabel(period);
@@ -113,10 +192,19 @@ async function start() {
     return;
   }
   if (location.hash !== `#${id}`) history.replaceState(null, '', `#${id}`);
+  liveId = id;
+  myDelay = loadMyDelay();
   try {
     serverNow = await Live.watch(id, {
       onData(doc) {
-        live = doc && doc.stato ? doc : null;
+        latest = doc && doc.stato ? doc : null;
+        if (latest) {
+          versions.push({ at: serverNow(), doc: latest });
+          pick();
+        } else {
+          versions = [];
+          live = null;
+        }
         render();
       },
       onConnection(connected) {
@@ -133,6 +221,13 @@ async function start() {
   }
 }
 
-setInterval(renderClock, 100);
+// Con il ritardo le versioni arrivate si mostrano quando è il loro momento, anche se non arriva niente di nuovo.
+setInterval(() => {
+  if (pick()) render();
+  else renderClock();
+}, 100);
+for (const btn of document.querySelectorAll('[data-delay]')) {
+  btn.addEventListener('click', () => changeDelay(Number(btn.dataset.delay)));
+}
 window.addEventListener('hashchange', () => location.reload());
 start();

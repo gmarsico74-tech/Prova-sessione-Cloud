@@ -1100,6 +1100,87 @@ input:focus-visible {
   margin-bottom: 0;
 }
 
+/* Il video di YouTube della diretta: il link nel tabellone, e nella pagina di chi guarda sopra il punteggio */
+
+.live-video-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 11em;
+  gap: 8px;
+}
+
+.board.live-board.with-video {
+  grid-template-areas:
+    "video video  video"
+    "home  center away"
+    "log   log    log"
+    "box   box    box";
+}
+
+.live-video {
+  grid-area: video;
+  display: grid;
+  gap: 8px;
+}
+
+/* alto al massimo 60% dello schermo, perché sul computer sotto si veda anche il punteggio */
+.video-frame iframe {
+  display: block;
+  width: 100%;
+  max-width: calc(60vh * 16 / 9);
+  margin: 0 auto;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: var(--radius);
+  background: #000;
+}
+
+.delay-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.delay-row strong {
+  font-family: var(--digits);
+  color: var(--text);
+}
+
+.delay-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.video-help {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.video-help a {
+  color: var(--away);
+}
+
+@media (max-width: 760px) {
+  .board.live-board.with-video {
+    grid-template-areas:
+      "video  video"
+      "center center"
+      "home   away"
+      "log    log"
+      "box    box";
+  }
+}
+
+@media (max-width: 430px) {
+  .live-video-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Il video della partita dentro il tabellone: grande in alto, con la barra dei comandi a voce sotto */
 
 .video-panel {

@@ -137,6 +137,16 @@
         <button type="button" data-action="live-share" hidden>Link della diretta</button>
         <button type="button" data-action="live-stop" hidden>Ferma diretta</button>
       </div>
+      <div class="live-video-fields">
+        <label class="team-field">
+          Video della diretta: il link di YouTube Live
+          <input type="url" id="live-youtube" inputmode="url" spellcheck="false" autocomplete="off" placeholder="https://youtube.com/live/…">
+        </label>
+        <label class="team-field">
+          Ritardo del video, secondi
+          <input type="number" id="live-delay" min="0" max="120" step="1" inputmode="numeric">
+        </label>
+      </div>
       <p class="box-help">
         «Pubblica tabellino» crea un link che chiunque può aprire, per esempio nel gruppo WhatsApp: mostra il
         tabellino com'è in quel momento. «Salva nell'archivio» conserva la partita su questo dispositivo:
@@ -144,7 +154,9 @@
         scarica lo stesso contenuto in un file, da dare al montatore per le scritte sul video o da aggiungere
         alle statistiche su un altro dispositivo. «Avvia diretta» crea il link di una pagina che mostra a
         chiunque punteggio, tempo, cronaca e tabellino mentre segni la partita; la prima volta chiede di entrare
-        con il tuo account Google.
+        con il tuo account Google. Se riprendi la partita con YouTube Live dal telefono, incolla qui il link del
+        video («Condividi» nella diretta di YouTube): la pagina della diretta lo mostra sopra il punteggio, e
+        punteggio, tempo e cronaca aspettano i secondi di ritardo del video, perché non cambino prima del canestro.
       </p>
       <p class="note" id="box-note" aria-live="polite"></p>
     </section>

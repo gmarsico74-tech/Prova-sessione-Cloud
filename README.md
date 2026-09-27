@@ -154,6 +154,15 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
   legge che il tabellone non è collegato: quello che segni intanto arriva appena la rete torna. «Ferma diretta» la
   chiude, e «Nuova partita» chiude quella della partita di prima. Con il tempo detto a voce la pagina mostra il
   tempo dell'ultima azione.
+- **Video della diretta con YouTube Live**: se riprendi la partita con il telefono in diretta su YouTube (anche «Non
+  in elenco»), incolla il link del video, quello che dà «Condividi», nel campo «Video della diretta» sotto i pulsanti
+  della diretta. La pagina della diretta mostra il video sopra il punteggio, e punteggio, tempo e cronaca aspettano i
+  secondi scritti in «Ritardo del video», perché non cambino prima che nel video si veda il canestro. Chi guarda
+  può aggiustare il ritardo sul suo telefono con «−1 s» e «+1 s»; se il video nella pagina non parte, c'è il link
+  per aprirlo su YouTube. Dal telefono YouTube va sempre a bassa latenza, di solito meno di 10 secondi: per
+  misurarla, apri la diretta di YouTube su un altro telefono a bordo campo e conta i secondi fra un fischio e lo
+  stesso fischio nel video. «Nuova partita» toglie il link, perché ogni partita ha la sua diretta su YouTube, e
+  tiene i secondi di ritardo.
 - **Schermo intero** con il pulsante in alto a destra, comodo su un tablet a bordo campo; si esce con lo stesso
   pulsante o con Esc. Sull'iPhone il browser non lo permette e il pulsante non compare.
 
@@ -197,6 +206,9 @@ quello che cambia, a pezzi, sotto `dirette/<codice della diretta>`:
 - `cronaca`: un'azione per chiave (`a0`, `a1`…, la sua posizione fra le azioni del tabellone), con periodo, tempo,
   squadra, la stessa `scritta` del file della partita e il punteggio dopo l'azione;
 - `tabellino`: il tabellino nel formato del link di [tabellino.html](tabellino.html);
+- `video`, solo se nel tabellone c'è il link di YouTube: il codice del video (`youtube`) e i secondi di ritardo
+  (`ritardo`). La pagina di chi guarda tiene le versioni della diretta arrivate negli ultimi secondi e mostra
+  quella di `ritardo` secondi fa, cronometro compreso;
 - `collegato` (falso da solo quando il tabellone perde la rete o si chiude), `chiusa`, `creata` e `aggiornata`.
 
 Chi può scrivere lo decidono le regole in [database.rules.json](database.rules.json): ogni diretta si legge solo
@@ -225,7 +237,7 @@ dell'emulatore, dove si inventa un account.
 | [tests/voice.test.js](tests/voice.test.js) | Test automatici del microfono a pulsante |
 | [tabellino.js](tabellino.js) | Disegna il tabellino, nel tabellone e nella pagina pubblicata |
 | [diretta.html](diretta.html) | La pagina della diretta, per chi segue la partita |
-| [diretta.js](diretta.js) | Mostra la diretta e fa scorrere il cronometro |
+| [diretta.js](diretta.js) | Mostra la diretta con il video di YouTube, fa scorrere il cronometro e aspetta il ritardo del video |
 | [live.js](live.js) | La diretta con Firebase: il tabellone la scrive, la pagina della diretta la legge |
 | [database.rules.json](database.rules.json) | Le regole del database: chi legge e chi scrive la diretta |
 | [firebase.json](firebase.json) | Le impostazioni per provare la diretta con l'emulatore di Firebase |
