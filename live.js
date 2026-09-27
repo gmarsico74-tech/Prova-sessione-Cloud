@@ -8,11 +8,11 @@
   // Il progetto Firebase della diretta. Questi dati non sono segreti, stanno in ogni pagina che usa Firebase:
   // chi può scrivere lo decidono le regole del database (database.rules.json), che accettano solo il proprietario.
   const CONFIG = {
-    apiKey: '',
-    authDomain: '',
-    databaseURL: '',
-    projectId: '',
-    appId: '',
+    apiKey: 'AIzaSyA0Lr3_i2JC7u6w7IbHVxSzXbTnTA49I1o',
+    authDomain: 'tabellone-pc52.firebaseapp.com',
+    databaseURL: 'https://tabellone-pc52-default-rtdb.europe-west1.firebasedatabase.app',
+    projectId: 'tabellone-pc52',
+    appId: '1:619214042060:web:0dc7bb4e835db1f361a369',
   };
   // Le prove sul computer usano l'emulatore di Firebase invece del progetto vero (vedi il README):
   // basta aprire la pagina da localhost con ?emulatore nell'indirizzo.
