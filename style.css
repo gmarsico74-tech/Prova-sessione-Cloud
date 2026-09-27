@@ -108,6 +108,7 @@ input:focus-visible {
   grid-template-areas:
     "home     center   away"
     "log      log      log"
+    "box      box      box"
     "settings settings settings";
   gap: 16px;
   max-width: 1100px;
@@ -118,6 +119,7 @@ input:focus-visible {
 .team,
 .center,
 .log-panel,
+.box-panel,
 .settings-panel {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -141,6 +143,10 @@ input:focus-visible {
 
 .log-panel {
   grid-area: log;
+}
+
+.box-panel {
+  grid-area: box;
 }
 
 .settings-panel {
@@ -339,6 +345,7 @@ input:focus-visible {
 /* Cronaca */
 
 .log-panel h2,
+.box-panel h2,
 .settings-panel h2 {
   margin: 0 0 8px;
   font-size: 13px;
@@ -667,6 +674,329 @@ input:focus-visible {
   width: 100%;
 }
 
+/* Tabellino: punti per periodo e, per squadra, punti, canestri e falli dei giocatori */
+
+.box {
+  display: grid;
+  gap: 16px;
+}
+
+.box table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.box th,
+.box td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.box thead th {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.box td {
+  font-family: var(--digits);
+}
+
+.box [data-side="home"] {
+  --accent: var(--home);
+}
+
+.box [data-side="away"] {
+  --accent: var(--away);
+}
+
+.box-periods {
+  width: auto;
+  min-width: min(100%, 360px);
+}
+
+.box-periods .box-team-name {
+  text-align: left;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 10em;
+}
+
+.box-tot,
+.box tfoot td {
+  font-weight: 700;
+}
+
+.box-team h3 {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 4px;
+  padding-bottom: 4px;
+  border-bottom: 3px solid var(--accent);
+  color: var(--accent);
+  font-size: 17px;
+}
+
+.box-team-pts {
+  font-family: var(--digits);
+}
+
+.box-scroll {
+  overflow-x: auto;
+}
+
+.box .min {
+  color: var(--muted);
+}
+
+.box .num {
+  width: 3em;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.box .who {
+  width: 100%;
+  max-width: 14em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: inherit;
+  text-align: left;
+}
+
+.box tr.out .num,
+.box tr.out td:last-child {
+  color: var(--clock);
+}
+
+.box .team-line .who,
+.box tfoot .who {
+  color: var(--muted);
+}
+
+.box-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.box-help {
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* Comandi vocali: in basso restano solo il cronometro e il microfono, grandi, da usare senza guardare */
+
+.voice-help {
+  margin: 4px 0 12px 32px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.voice-help p,
+.voice-help ul {
+  margin: 0 0 8px;
+}
+
+.voice-help ul {
+  padding-left: 18px;
+  color: var(--text);
+}
+
+.voice-help .time-source {
+  margin: 0 0 12px;
+  padding: 8px 12px 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+}
+
+.time-source legend {
+  padding: 0 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.date-field {
+  max-width: 16em;
+  margin: 0 0 8px;
+}
+
+.voice-mode .board {
+  padding-bottom: 230px;
+}
+
+/* Con il tempo detto a voce il cronometro qui non serve: resta solo il microfono */
+
+.voice-time .dock-buttons {
+  grid-template-columns: 1fr;
+}
+
+.voice-time .dock-buttons [data-action="toggle-clock"] {
+  display: none;
+}
+
+/* Chi è in campo: il numero in verde */
+
+.player.on-court .p-num {
+  color: var(--go);
+}
+
+.player.on-court .p-num::after {
+  content: " ●";
+  font-size: 10px;
+  vertical-align: middle;
+}
+
+.voice-dock {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.voice-dock > * {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.dock-info {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--digits);
+  font-weight: 700;
+}
+
+#dock-clock {
+  color: var(--clock);
+}
+
+#dock-score {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-status {
+  min-height: 3em;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.voice-status.ok {
+  color: var(--go);
+}
+
+.voice-status.ko {
+  color: var(--clock);
+}
+
+.voice-status.listening {
+  color: var(--text);
+}
+
+.voice-heard {
+  display: block;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.dock-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 10px;
+}
+
+.dock-buttons button {
+  min-height: 84px;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.dock-buttons .talk {
+  font-size: 18px;
+}
+
+.talk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-color: transparent;
+  background: #2c4a7a;
+  color: #fff;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.talk.listening {
+  background: var(--clock);
+  animation: listening 1s ease-in-out infinite alternate;
+}
+
+@keyframes listening {
+  to {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--clock) 30%, transparent);
+  }
+}
+
+/* La pagina del tabellino pubblicato */
+
+.published {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.published-head h1 {
+  margin: 8px 0 4px;
+  font-size: clamp(22px, 5vw, 32px);
+}
+
+.published-when {
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+
+.published-when::first-letter {
+  text-transform: uppercase;
+}
+
+.published-foot {
+  margin: 20px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.published a {
+  color: var(--away);
+}
+
 /* Con i giocatori le squadre affiancate servono solo su schermi larghi; lì il cronometro
    resta in vista mentre si scorrono i giocatori, senza mai uscire dalla sua colonna */
 
@@ -689,6 +1019,7 @@ input:focus-visible {
       "home"
       "away"
       "log"
+      "box"
       "settings";
   }
 }
@@ -702,6 +1033,7 @@ input:focus-visible {
       "center   center"
       "home     away"
       "log      log"
+      "box      box"
       "settings settings";
     gap: 12px;
   }
@@ -709,8 +1041,13 @@ input:focus-visible {
   .team,
   .center,
   .log-panel,
+  .box-panel,
   .settings-panel {
     padding: 12px;
+  }
+
+  .box-actions {
+    grid-template-columns: 1fr;
   }
 
   .rosters {
