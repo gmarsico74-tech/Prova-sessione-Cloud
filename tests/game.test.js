@@ -1092,3 +1092,28 @@ test('il colore resta con la squadra salvata, nel link delle squadre e nel file 
   assert.equal(Game.gameFile(state, 0).squadre.ospiti.colore, 'blu');
   assert.equal(Game.gameFromData(Game.archiveEntry(state, 0).dati).colors.home, 'bianco');
 });
+
+test('il colore si riconosce qualunque forma abbia quello scritto: bianchi, maglia bianca, bianco e rosso', () => {
+  const state = colorGame();
+  Game.addPlayer(state, 'away', 45);
+  Game.addPlayer(state, 'home', 45);
+  Game.addPlayer(state, 'away', 74);
+  const heard = 'numero 74 blu tiro sbagliato da tre punti rimbalzo del numero 45 bianco al 5 e 00';
+  const expected = [['miss', 'away', 74, 3, ''], ['dreb', 'home', 45, '', '']];
+  for (const [home, away] of [['bianco', 'blu'], ['bianchi', 'blu'], ['Bianche', 'Blu'], ['maglia bianca', 'maglia blu'], ['bianco e rosso', 'blu']]) {
+    Game.setColor(state, 'home', home);
+    Game.setColor(state, 'away', away);
+    assert.deepEqual(items(state, heard), expected, `${home} / ${away}`);
+  }
+  Game.setColor(state, 'home', 'grigio');
+  assert.deepEqual(items(state, 'canestro del 45 grigi al 5 e 00'), [['score', 'home', 45, 2, '']]);
+});
+
+test('un colore detto che non è di nessuna squadra: si spiega dove scriverlo', () => {
+  const state = colorGame();
+  Game.addPlayer(state, 'away', 45);
+  Game.addPlayer(state, 'home', 45);
+  Game.setColor(state, 'home', 'grigio');
+  assert.match(Game.parseCommand(state, 'canestro del 45 bianco al 5 e 00', 0).error, /«bianco» non è il colore di nessuna squadra/);
+  assert.match(Game.parseCommand(state, 'canestro del 45 al 5 e 00', 0).error, /di' anche la squadra o il colore della maglia/);
+});

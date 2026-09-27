@@ -1349,7 +1349,10 @@
     const sides = side ? [side] : ['home', 'away'];
     const found = sides.filter((team) => state.rosters[team].includes(number));
     if (found.length === 1) return { team: found[0], player: number };
-    if (found.length > 1) return { error: `Il ${number} c'è in tutte e due le squadre: di' anche la squadra.`, needsTeam: true };
+    if (found.length > 1) {
+      const or = state.colors?.home || state.colors?.away ? ' o il colore della maglia' : '';
+      return { error: `Il ${number} c'è in tutte e due le squadre: di' anche la squadra${or}.`, needsTeam: true };
+    }
     if (!side) return { error: `Il ${number} non è in squadra: di' anche la squadra e lo aggiungo.`, needsTeam: true };
     if (state.rosters[side].length >= maxPlayers(state)) {
       return { error: `${state.names[side]} ha già ${maxPlayers(state)} giocatori: il ${number} non c'è.` };
@@ -1541,7 +1544,7 @@
       }
     }
     const failed = clauses.find((c) => c.who.error);
-    if (failed) return { error: failed.who.error };
+    if (failed) return { error: failed.who.error, needsTeam: failed.who.needsTeam };
 
     // 5. le azioni pronte, con i controlli: rimbalzo in attacco o in difesa, nessuno con 5 falli
     const items = [];
@@ -1594,15 +1597,49 @@
     } else {
       cmd = parseActions(state, text, time.at);
     }
-    return cmd.error ? cmd : { ...cmd, at: time.at };
+    if (cmd.needsTeam) {
+      // la squadra non si capisce ma è stato detto un colore: non è quello di nessuna delle due maglie
+      const unknown = text
+        .trim()
+        .split(/\s+/)
+        .find((w) => COMMON_COLORS.some((c) => new RegExp(`^${colorStem(c)}(?:h?[aeio]+)?$`).test(w)));
+      if (unknown) {
+        return { error: `«${unknown}» non è il colore di nessuna squadra: scrivilo in Impostazioni, in «Colore maglia».` };
+      }
+    }
+    return cmd.error ? { error: cmd.error } : { ...cmd, at: time.at };
   }
 
-  // Il colore della maglia si riconosce anche al femminile e al plurale: «bianco» vale per bianca, bianchi, bianche.
-  function colorPattern(color) {
-    const parts = speechWords(color).split(' ').filter(Boolean);
-    if (parts.length === 0) return null;
-    const flex = (w) => (/[aeio]$/.test(w) && w.length > 3 ? `${w.slice(0, -1)}(?:[aeio]|h[ie])` : w);
-    return new RegExp(` (?:${parts.map(flex).join(' ')})(?= )`, 'g');
+  const COLOR_FILLER = ['maglia', 'maglie', 'divisa', 'con', 'colore'];
+  // I colori delle maglie più comuni: se se ne dice uno che non è di nessuna squadra, si spiega dove scriverlo.
+  const COMMON_COLORS = ['bianco', 'nero', 'blu', 'rosso', 'verde', 'giallo', 'azzurro', 'arancione', 'arancio', 'viola',
+    'grigio', 'rosa', 'celeste', 'granata', 'amaranto', 'oro', 'argento', 'bordeaux', 'fucsia', 'marrone'];
+
+  // La radice di un colore, uguale per maschile, femminile, singolare e plurale: bianco, bianca, bianchi,
+  // bianche diventano tutti «bianc»; grigio e grigi «grig»; blu resta blu.
+  function colorStem(word) {
+    const stem = word.replace(/h?[aeio]+$/, '');
+    return stem.length >= 3 ? stem : word;
+  }
+
+  // Le radici delle parole del colore scritto in Impostazioni («maglia bianca», «bianco e rosso»), senza le parole
+  // di contorno e senza quelle che ha anche il colore dell'altra squadra.
+  function colorStems(state, team) {
+    const stems = (text) =>
+      speechWords(text)
+        .split(' ')
+        .filter((w) => w.length >= 3 && !COLOR_FILLER.includes(w) && !/^\d+$/.test(w))
+        .map(colorStem);
+    const other = stems(state.colors?.[team === 'home' ? 'away' : 'home'] ?? '');
+    return [...new Set(stems(state.colors?.[team] ?? ''))].filter((stem) => !other.includes(stem));
+  }
+
+  // Il colore detto a voce si riconosce in tutte le sue forme: «bianco» scritto vale per bianca, bianchi, bianche,
+  // e viceversa.
+  function colorPattern(state, team) {
+    const stems = colorStems(state, team);
+    if (stems.length === 0) return null;
+    return new RegExp(` (?:${stems.map((st) => `${st}(?:h?[aeio]+)?`).join('|')})(?= )`, 'g');
   }
 
   // I nomi delle squadre, «casa» e «ospiti» e i colori delle maglie diventano segnaposti (@home, @away),
@@ -1621,18 +1658,15 @@
     // un colore che è anche un cognome in squadra («Bianchi», «Rossi») vale come colore solo accanto a un numero:
     // «il 12 dei bianchi» è la squadra, «assist di Bianchi» è il giocatore
     const names = nameIndex(state);
-    const colors = ['home', 'away'].map((team) => speechWords(state.colors?.[team] ?? ''));
-    if (colors[0] !== colors[1]) {
-      ['home', 'away'].forEach((team) => {
-        const pattern = colorPattern(state.colors?.[team] ?? '');
-        if (!pattern) return;
-        text = text.replace(pattern, (m, offset, whole) => {
-          // accanto vuol dire subito prima o subito dopo, o prima con una parola in mezzo («il 12 dei bianchi»)
-          const near = [...whole.slice(0, offset).trim().split(' ').slice(-2), whole.slice(offset + m.length).trim().split(' ')[0]];
-          if (m.trim().split(' ').some((w) => names.has(w)) && !near.some((w) => /^\d+$/.test(w))) return m;
-          found = true;
-          return ` @${team}`;
-        });
+    for (const team of ['home', 'away']) {
+      const pattern = colorPattern(state, team);
+      if (!pattern) continue;
+      text = text.replace(pattern, (m, offset, whole) => {
+        // accanto vuol dire subito prima o subito dopo, o prima con una parola in mezzo («il 12 dei bianchi»)
+        const near = [...whole.slice(0, offset).trim().split(' ').slice(-2), whole.slice(offset + m.length).trim().split(' ')[0]];
+        if (m.trim().split(' ').some((w) => names.has(w)) && !near.some((w) => /^\d+$/.test(w))) return m;
+        found = true;
+        return ` @${team}`;
       });
     }
     if (!found) {
