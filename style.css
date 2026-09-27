@@ -181,6 +181,15 @@ input:focus-visible {
   border-color: var(--line);
 }
 
+.team-color {
+  margin-top: -8px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .score {
   display: block;
   font-family: var(--digits);

@@ -1031,3 +1031,64 @@ test('con il tempo detto a voce, una frase senza azione dice che non ha capito l
   assert.match(Game.parseCommand(state, 'boh non so', 0).error, /Non ho capito cosa è successo/);
   assert.match(Game.parseCommand(state, 'assist del 7 PC52', 0).error, /Manca il tempo/);
 });
+
+// ——— Colore delle maglie ———
+
+function colorGame() {
+  const state = scoutGame();
+  Game.setColor(state, 'home', 'bianco');
+  Game.setColor(state, 'away', 'blu');
+  Game.addPlayer(state, 'home', 15);
+  Game.addPlayer(state, 'home', 24);
+  Game.addPlayer(state, 'away', 3);
+  return state;
+}
+
+test('il colore della maglia vale come il nome della squadra, anche al femminile e al plurale', () => {
+  const state = colorGame();
+  const t = ' al 5 e 00';
+  const cases = [
+    ['numero 12 bianco, tiro da 3 sbagliato', [['miss', 'home', 12, 3, '']]],
+    ['canestro del 7 blu', [['score', 'away', 7, 2, '']]],
+    ['canestro del 7 dei bianchi', [['score', 'home', 7, 2, '']]],
+    ['rimbalzo difensivo bianca', [['dreb', 'home', undefined, '', '']]],
+  ];
+  for (const [heard, expected] of cases) assert.deepEqual(items(state, heard + t), expected, heard);
+});
+
+test('un fallo o una stoppata con chi la fa e chi la subisce, detti con i colori', () => {
+  const state = colorGame();
+  const t = ' al 5 e 00';
+  const cases = [
+    ['fallo del numero 15 bianco sul numero 12 blu', [['foul', 'home', 15, '', ''], ['fd', 'away', 12, '', '']]],
+    ['stoppata del numero 24 bianco sul tiro del numero 3 blu', [['blk', 'home', 24, '', ''], ['miss', 'away', 3, 2, 'stoppato']]],
+    ['stoppata del 24 sul tiro da 3 del 3', [['blk', 'home', 24, '', ''], ['miss', 'away', 3, 3, 'stoppato']]],
+  ];
+  for (const [heard, expected] of cases) assert.deepEqual(items(state, heard + t), expected, heard);
+  Game.voiceCommand(state, 0, ['fallo del numero 15 bianco sul numero 12 blu' + t]);
+  const box = Game.boxScore(state, 0);
+  assert.equal(box.teams.home.players.find((p) => p.number === 15).fouls, 1, 'chi fa il fallo');
+  assert.equal(box.teams.away.players.find((p) => p.number === 12).fd, 1, 'chi lo subisce');
+});
+
+test('un colore che è anche un cognome vale come colore solo accanto a un numero', () => {
+  const state = colorGame();
+  Game.setPlayerName(state, 'home', 7, 'Bianchi');
+  const t = ' al 5 e 00';
+  assert.deepEqual(items(state, 'assist di Bianchi' + t), [['ast', 'home', 7, '', '']], 'il giocatore');
+  assert.deepEqual(items(state, 'canestro del 7 bianchi' + t), [['score', 'home', 7, 2, '']], 'la squadra');
+  assert.deepEqual(items(state, 'canestro del 12 blu' + t), [['score', 'away', 12, 2, '']]);
+});
+
+test('il colore resta con la squadra salvata, nel link delle squadre e nel file della partita', () => {
+  const state = colorGame();
+  const library = Game.saveTeam([], state, 'home');
+  assert.equal(library[0].color, 'bianco');
+  const back = Game.decodeLibrary(Game.encodeLibrary(library));
+  assert.equal(back[0].color, 'bianco');
+  const next = Game.newGame(state.names, { colors: { home: '', away: '' } });
+  Game.loadTeam(next, 'away', back[0]);
+  assert.equal(next.colors.away, 'bianco');
+  assert.equal(Game.gameFile(state, 0).squadre.ospiti.colore, 'blu');
+  assert.equal(Game.gameFromData(Game.archiveEntry(state, 0).dati).colors.home, 'bianco');
+});

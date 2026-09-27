@@ -23,6 +23,7 @@
   <main class="board">
     <section class="team home" data-team="home">
       <input class="team-name" maxlength="14" spellcheck="false" aria-label="Nome squadra di casa">
+      <span class="team-color" data-role="color" hidden></span>
       <output class="score" data-role="score">0</output>
       <div class="btn-row team-only">
         <button data-action="score" data-pts="1">+1</button>
@@ -68,6 +69,7 @@
 
     <section class="team away" data-team="away">
       <input class="team-name" maxlength="14" spellcheck="false" aria-label="Nome squadra ospite">
+      <span class="team-color" data-role="color" hidden></span>
       <output class="score" data-role="score">0</output>
       <div class="btn-row team-only">
         <button data-action="score" data-pts="1">+1</button>
@@ -158,6 +160,8 @@
           <li>«fallo del 12» · «fallo subito dal 25» · «canestro da 2 ospiti», alla squadra senza giocatore</li>
           <li>più azioni insieme: «palla persa del 23, recuperata dal 32» · «canestro del 4, assist del 25» ·
             «fallo del 12 sul 25» · «stoppata del 12 sul 4» · «tiro sbagliato del 25, rimbalzo del 12»</li>
+          <li>con il colore della maglia al posto della squadra: «numero 12 bianco, tiro da 3 sbagliato» ·
+            «fallo del 15 bianco sul 12 blu» · «stoppata del 24 bianco sul tiro del 3 blu»</li>
           <li>«quintetto 4 7 9 12 25 PC52 inizio del primo quarto» · «entra il 12, esce il 7»</li>
           <li>«annulla», che toglie tutto l'ultimo comando</li>
         </ul>
@@ -167,7 +171,8 @@
           vale quello del tabellone. Con il tempo dal cronometro dirlo non serve; se lo dici, vale quello detto.
         </p>
         <p>
-          Il canestro e il tiro sbagliato senza valore sono da 2. La squadra si dice con il suo nome, oppure
+          Il canestro e il tiro sbagliato senza valore sono da 2. La squadra si dice con il suo nome, con il colore
+          della maglia scritto nelle squadre qui sotto (bianco vale anche per bianca, bianchi, bianche), oppure
           «casa» e «ospiti», e serve solo se il numero c'è in tutte e due le squadre o se non c'è ancora: in quel
           caso il giocatore viene aggiunto. Nei comandi con più azioni la squadra si capisce da sola: chi recupera
           è dell'altra squadra, chi fa assist della stessa. Il rimbalzo senza «attacco» o «difesa» si capisce
@@ -198,6 +203,10 @@
               Nome squadra
               <input type="text" class="roster-team-name" maxlength="14" spellcheck="false" aria-label="Nome della squadra di casa">
             </label>
+            <label class="team-field">
+              Colore maglia
+              <input type="text" class="roster-team-color" maxlength="20" spellcheck="false" placeholder="per esempio bianco" aria-label="Colore della maglia della squadra di casa">
+            </label>
             <ol class="roster-list" data-role="roster-list"></ol>
             <form class="add-player" novalidate>
               <input type="number" class="add-number" min="0" max="99" step="1" inputmode="numeric" placeholder="N°" aria-label="Numero di maglia da aggiungere alla squadra di casa">
@@ -213,6 +222,10 @@
             <label class="team-field">
               Nome squadra
               <input type="text" class="roster-team-name" maxlength="14" spellcheck="false" aria-label="Nome della squadra ospite">
+            </label>
+            <label class="team-field">
+              Colore maglia
+              <input type="text" class="roster-team-color" maxlength="20" spellcheck="false" placeholder="per esempio bianco" aria-label="Colore della maglia della squadra ospite">
             </label>
             <ol class="roster-list" data-role="roster-list"></ol>
             <form class="add-player" novalidate>

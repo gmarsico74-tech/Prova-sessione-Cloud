@@ -31,6 +31,8 @@
   function newGame(names, setup = {}) {
     return {
       names: { ...names },
+      // il colore delle maglie: a voce «il 12 bianco» vale come dire la squadra
+      colors: { home: setup.colors?.home ?? '', away: setup.colors?.away ?? '' },
       settings: { playerMode: false, friendly: false, shotClock: false, voice: false, timeSource: 'app', ...setup.settings },
       rosters: { home: [...(setup.rosters?.home ?? [])], away: [...(setup.rosters?.away ?? [])] },
       playerNames: { home: { ...setup.playerNames?.home }, away: { ...setup.playerNames?.away } },
@@ -318,11 +320,18 @@
   }
 
   // Le squadre salvate: nome della squadra e giocatori con numero e nome, pronti da richiamare.
+  // Con il colore della maglia, se è stato scritto: richiamando la squadra torna anche quello.
   function teamSnapshot(state, team) {
+    const color = state.colors[team];
     return {
       name: state.names[team],
       players: state.rosters[team].map((number) => ({ number, name: state.playerNames[team][number] ?? '' })),
+      ...(color ? { color } : {}),
     };
+  }
+
+  function setColor(state, team, text) {
+    state.colors[team] = String(text).trim().slice(0, 20);
   }
 
   function sameName(a, b) {
@@ -368,7 +377,12 @@
   }
 
   function encodeLibrary(library) {
-    return toLinkText(library.map((t) => [t.name, t.players.map((p) => (p.name ? [p.number, p.name] : [p.number]))]));
+    return toLinkText(
+      library.map((t) => {
+        const entry = [t.name, t.players.map((p) => (p.name ? [p.number, p.name] : [p.number]))];
+        return t.color ? [...entry, t.color] : entry;
+      })
+    );
   }
 
   // Le squadre contenute nel link, oppure null se il link è rovinato o non viene dal tabellone.
@@ -391,12 +405,14 @@
       name: String(playerName).trim().slice(0, 20),
     }));
     const numbers = players.map((p) => p.number);
+    const color = typeof entry[2] === 'string' ? entry[2].trim().slice(0, 20) : '';
     const valid =
       name !== '' &&
       players.length <= MAX_PLAYERS_FRIENDLY &&
       numbers.every((n) => Number.isInteger(n) && n >= 0 && n <= 99) &&
       new Set(numbers).size === numbers.length;
-    return valid ? { name, players } : null;
+    if (!valid) return null;
+    return color ? { name, players, color } : { name, players };
   }
 
   // Richiama una squadra salvata al posto di quella attuale, ma solo finché i suoi giocatori
@@ -409,6 +425,7 @@
       return `«${saved.name}» ha ${saved.players.length} giocatori: spunta prima «Amichevole».`;
     }
     state.names[team] = saved.name;
+    if (saved.color) state.colors[team] = saved.color;
     state.rosters[team] = saved.players.map((p) => p.number).sort((a, b) => a - b);
     state.playerNames[team] = Object.fromEntries(saved.players.filter((p) => p.name).map((p) => [p.number, p.name]));
     state.origins[team] = saved.name;
@@ -839,6 +856,7 @@
   function gameData(state, now) {
     return {
       names: { ...state.names },
+      colors: { ...state.colors },
       rosters: { home: [...state.rosters.home], away: [...state.rosters.away] },
       playerNames: { home: { ...state.playerNames.home }, away: { ...state.playerNames.away } },
       date: gameDate(state, now),
@@ -900,7 +918,11 @@
         tabellino: boxForFile(boxScore(state, now, period)),
       });
     }
-    const roster = (team) => ({ nome: state.names[team], giocatori: players(team, state.rosters[team]) });
+    const roster = (team) => ({
+      nome: state.names[team],
+      colore: state.colors[team],
+      giocatori: players(team, state.rosters[team]),
+    });
     return {
       formato: 'tabellone-basket-partita',
       versione: 1,
@@ -936,7 +958,7 @@
 
   // Dai dati grezzi torna una partita su cui fare i calcoli, ferma dove era arrivata.
   function gameFromData(dati) {
-    const state = newGame(dati.names, { rosters: dati.rosters, playerNames: dati.playerNames });
+    const state = newGame(dati.names, { rosters: dati.rosters, playerNames: dati.playerNames, colors: dati.colors });
     state.date = dati.date;
     state.period = dati.period;
     state.clock = { ...freshClock(dati.period), remainingMs: dati.clockMs };
@@ -961,6 +983,7 @@
       d &&
       typeof d.names?.home === 'string' &&
       typeof d.names?.away === 'string' &&
+      (d.colors === undefined || (typeof d.colors?.home === 'string' && typeof d.colors?.away === 'string')) &&
       numbers(d.rosters?.home) &&
       numbers(d.rosters?.away) &&
       typeof d.playerNames?.home === 'object' &&
@@ -1416,7 +1439,15 @@
     // «fallo del 5 sul 12», «stoppata del 7 sul 12»: chi è dopo «su» subisce
     tokens.forEach((w, i) => {
       if (!ON_WORD.test(w)) return;
-      const next = tokens.slice(i + 1, i + 3).find((t) => isNumber(t) || isName(t) || /^v\d$/.test(t));
+      // «sul 12», «sul numero 12», «sul tiro del numero 3»: il giocatore entro poche parole, prima di un'altra azione
+      let next = null;
+      for (const t of tokens.slice(i + 1, i + 6)) {
+        if (HEAD_WORDS.some(([, re]) => re.test(t))) break;
+        if (isNumber(t) || isName(t) || /^v\d$/.test(t)) {
+          next = t;
+          break;
+        }
+      }
       const before = heads.filter((h) => h.index < i).pop();
       if (!next || !before) return;
       if (before.kind === 'foul') heads.push({ kind: 'fd', index: i });
@@ -1566,7 +1597,16 @@
     return cmd.error ? cmd : { ...cmd, at: time.at };
   }
 
-  // I nomi delle squadre diventano segnaposti (@home, @away), così ogni pezzo della frase sa di quale squadra parla.
+  // Il colore della maglia si riconosce anche al femminile e al plurale: «bianco» vale per bianca, bianchi, bianche.
+  function colorPattern(color) {
+    const parts = speechWords(color).split(' ').filter(Boolean);
+    if (parts.length === 0) return null;
+    const flex = (w) => (/[aeio]$/.test(w) && w.length > 3 ? `${w.slice(0, -1)}(?:[aeio]|h[ie])` : w);
+    return new RegExp(` (?:${parts.map(flex).join(' ')})(?= )`, 'g');
+  }
+
+  // I nomi delle squadre, «casa» e «ospiti» e i colori delle maglie diventano segnaposti (@home, @away),
+  // così ogni pezzo della frase sa di quale squadra parla.
   function markTeams(state, text) {
     let found = false;
     for (const team of ['home', 'away']) {
@@ -1577,6 +1617,23 @@
       const pattern = teamPattern(state.names[team]);
       if (pattern) text = text.replace(pattern, mark);
       text = text.replace(SIDE_WORDS[team], mark);
+    }
+    // un colore che è anche un cognome in squadra («Bianchi», «Rossi») vale come colore solo accanto a un numero:
+    // «il 12 dei bianchi» è la squadra, «assist di Bianchi» è il giocatore
+    const names = nameIndex(state);
+    const colors = ['home', 'away'].map((team) => speechWords(state.colors?.[team] ?? ''));
+    if (colors[0] !== colors[1]) {
+      ['home', 'away'].forEach((team) => {
+        const pattern = colorPattern(state.colors?.[team] ?? '');
+        if (!pattern) return;
+        text = text.replace(pattern, (m, offset, whole) => {
+          // accanto vuol dire subito prima o subito dopo, o prima con una parola in mezzo («il 12 dei bianchi»)
+          const near = [...whole.slice(0, offset).trim().split(' ').slice(-2), whole.slice(offset + m.length).trim().split(' ')[0]];
+          if (m.trim().split(' ').some((w) => names.has(w)) && !near.some((w) => /^\d+$/.test(w))) return m;
+          found = true;
+          return ` @${team}`;
+        });
+      });
     }
     if (!found) {
       for (const team of ['home', 'away']) {
@@ -1744,6 +1801,7 @@
     maxPlayers,
     addPlayer,
     setPlayerName,
+    setColor,
     playerLabel,
     canRemovePlayer,
     removePlayer,

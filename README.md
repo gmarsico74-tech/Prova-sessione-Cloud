@@ -32,8 +32,12 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
   al quinto diventa rosso, il numero del giocatore si colora di rosso e i suoi pulsanti dei punti si spengono.
   Si toglie dall'elenco solo un giocatore senza punti né falli.
   Spenta l'opzione, il tabellone torna come prima, con gli stessi punti.
+- **Colore delle maglie**: in Impostazioni ogni squadra ha il campo «Colore maglia», che compare sotto il nome nel
+  tabellone. Nei comandi vocali il colore vale come il nome della squadra, anche al femminile e al plurale («bianco»
+  vale per bianca, bianchi, bianche). Se il colore è anche il cognome di un giocatore (Bianchi, Rossi), vale come
+  colore solo accanto a un numero: «il 12 dei bianchi» è la squadra, «assist di Bianchi» è il giocatore.
 - **Squadre salvate**: in Impostazioni ogni squadra ha il campo «Nome squadra» (lo stesso nome che compare in alto
-  nel tabellone) e «Salva squadra» conserva nome, numeri e nomi dei giocatori. Nell'elenco «Squadre salvate» ogni
+  nel tabellone) e «Salva squadra» conserva nome, colore della maglia, numeri e nomi dei giocatori. Nell'elenco «Squadre salvate» ogni
   squadra ha quattro pulsanti: «In casa» e «Ospite» la richiamano, finché i giocatori in campo non hanno ancora
   punti o falli; «Modifica» la apre nel riquadro della squadra di casa, dove si cambiano nome e giocatori e
   «Salva squadra» la aggiorna (se il nome è cambiato chiede se rinominarla o salvarne una copia); «Elimina» la toglie. Le squadre restano salvate nel browser del dispositivo su cui le salvi;
@@ -51,14 +55,19 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
     12», «rimbalzo offensivo del 4», «assist del 9», «palla recuperata dal 32», «palla persa del 23», «stoppata del 12»,
     «4 stoppato», «fallo del 12», «fallo subito dal 25»;
   - più azioni in un comando, con un tempo solo: «palla persa del 23, recuperata dal 32», «canestro del 4, assist del
-    25», «fallo del 12 sul 25» (il 25 subisce), «stoppata del 12 sul 4» (il 4 è stoppato), «tiro sbagliato del 25,
-    rimbalzo del 12». Ogni azione prende il giocatore detto subito dopo di lei, o quello detto prima se dopo non c'è;
+    25», «fallo del 12 sul 25» (il 25 subisce), «stoppata del 12 sul 4» o «sul tiro del 4» (il 4 è stoppato),
+    «tiro sbagliato del 25, rimbalzo del 12». Ogni azione prende il giocatore detto subito dopo di lei, o quello
+    detto prima se dopo non c'è. Fallo e stoppata contano per tutti e due: falli fatti e subiti, stoppate date e
+    subite (la stoppata subita è anche un tiro sbagliato, da 2 se non si dice «da 3»);
+  - con il colore della maglia al posto del nome della squadra: «numero 12 bianco, tiro da 3 sbagliato», «fallo del 15
+    bianco sul 12 blu», «stoppata del 24 bianco sul tiro del 3 blu»;
   - chi è in campo: «quintetto 4 7 9 12 25 PC52 inizio del primo quarto», e i cambi «entra il 12, esce il 7», anche più
     di uno insieme: «entrano 12 e 14, escono 7 e 9»;
   - «annulla», che toglie tutte le azioni dell'ultimo comando.
 
   Il canestro e il tiro sbagliato senza valore sono da 2; il giocatore si dice con il numero o con il nome. La squadra
-  si dice con il suo nome (basta anche una parola che l'altra non ha), oppure «casa» e «ospiti», e serve solo se il
+  si dice con il suo nome (basta anche una parola che l'altra non ha), con il colore della maglia, oppure «casa» e
+  «ospiti», e serve solo se il
   numero c'è in tutte e due le squadre o se non c'è ancora: allora il giocatore viene aggiunto, e «annulla» lo toglie
   di nuovo. Nei comandi con più azioni la squadra si ricava da sola: chi recupera, chi subisce il fallo e chi è stoppato
   sono dell'altra squadra, chi fa assist della stessa di chi segna. In un cambio la squadra si capisce da chi esce.

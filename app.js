@@ -45,6 +45,7 @@ function load() {
       saved.settings.timeSource ??= 'app'; // e prima del tempo detto a voce
       saved.date ??= null; // e prima del giorno della partita
       saved.notes ??= []; // e prima dei comandi non registrati
+      saved.colors ??= { home: '', away: '' }; // e prima del colore delle maglie
       saved.rosters ??= { home: [], away: [] };
       saved.playerNames ??= { home: {}, away: {} }; // e prima dei nomi
       saved.origins ??= { home: null, away: null }; // e prima di «Modifica»
@@ -103,6 +104,9 @@ function render() {
     const fouls = Game.teamFouls(events, team, period);
     const timeouts = Game.timeoutsLeft(events, team, period);
     const maxTimeouts = Game.timeoutWindow(period).max;
+    const color = $('[data-role="color"]', panel);
+    color.textContent = state.colors[team] ? `maglia ${state.colors[team]}` : '';
+    color.hidden = !state.colors[team];
     const input = $('.team-name', panel);
     if (document.activeElement !== input) input.value = state.names[team];
     fitName(input);
@@ -221,6 +225,8 @@ function renderSettings() {
   const max = Game.maxPlayers(state);
   for (const team of TEAMS) {
     const box = $(`[data-roster="${team}"]`);
+    const colorField = $('.roster-team-color', box);
+    if (document.activeElement !== colorField) colorField.value = state.colors[team];
     const nameField = $('.roster-team-name', box);
     if (document.activeElement !== nameField) nameField.value = state.names[team];
     $('[data-role="roster-count"]', box).textContent = `${rosters[team].length} su ${max}`;
@@ -802,6 +808,18 @@ for (const input of document.querySelectorAll('.team-name')) {
     save();
     fitName(input);
     renderLog();
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') input.blur();
+  });
+  input.addEventListener('blur', render);
+}
+
+for (const input of document.querySelectorAll('.roster-team-color')) {
+  const team = input.closest('[data-roster]').dataset.roster;
+  input.addEventListener('input', () => {
+    Game.setColor(state, team, input.value);
+    save();
   });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') input.blur();
