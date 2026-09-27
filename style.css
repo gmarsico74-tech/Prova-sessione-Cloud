@@ -300,6 +300,11 @@ input:focus-visible {
   color: #ff2d2d;
 }
 
+/* fermo insieme al video: riparte quando riparte il video */
+.clock.held {
+  opacity: 0.55;
+}
+
 .clock.expired,
 .shot.expired {
   animation: blink 1s steps(2, start) infinite;

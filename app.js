@@ -30,6 +30,8 @@ let state = load();
 let videoUrl = null; // il video della partita aperto in questa pagina
 let talkVideo = null; // quando si preme il microfono: { ms } il punto del video, resume se va fatto ripartire
 let videoSavedAt = 0;
+let clockHeld = false; // il cronometro fermo perché è fermo il video: riparte quando riparte il video
+let videoMark = { s: 0, at: 0 }; // dove era il video (secondi) e quando lo si è visto, per misurare i salti
 let keyTalk = null; // il tasto del microfono: { since, latched } finché il microfono è aperto da tastiera
 let wakeLock = null; // con i comandi vocali lo schermo resta acceso
 let library = loadLibrary();
@@ -451,8 +453,9 @@ function showNote(box, text) {
 function renderClock() {
   const now = Date.now();
   const ms = Game.remainingMs(state.clock, now);
-  const running = state.clock.running;
+  const running = state.clock.running || clockHeld;
   clockEl.textContent = Game.formatClock(ms);
+  clockEl.classList.toggle('held', clockHeld);
   const inVideo = videoUrl !== null ? ` · ▶ ${Game.formatVideoTime(videoEl.currentTime * 1000)}` : '';
   $('#dock-clock').textContent = `${Game.periodLabel(state.period)} ${Game.formatClock(ms)}${inVideo}`;
   clockEl.classList.toggle('last-minute', ms < 60000);
@@ -467,7 +470,7 @@ function renderClock() {
     toggle.classList.toggle('running', running);
     toggle.disabled = !running && ms === 0;
   }
-  for (const btn of document.querySelectorAll('[data-action="adjust"]')) btn.disabled = running;
+  for (const btn of document.querySelectorAll('[data-action="adjust"]')) btn.disabled = state.clock.running;
 }
 
 function renderLog() {
@@ -532,9 +535,16 @@ function cell(className, text) {
   return span;
 }
 
+// Con il video aperto il cronometro segue il video: a video fermo Avvia lo fa partire insieme al video,
+// e Pausa lo lascia fermo anche quando il video riparte.
 function toggleClock(now) {
-  if (state.clock.running) {
+  if (clockHeld) {
+    clockHeld = false;
+  } else if (state.clock.running) {
     Game.pauseClock(state.clock, now);
+  } else if (videoUrl !== null && videoEl.paused) {
+    unlockAudio();
+    clockHeld = Game.remainingMs(state.clock, now) > 0;
   } else {
     unlockAudio();
     Game.startClock(state.clock, now);
@@ -704,12 +714,15 @@ document.addEventListener('click', (e) => {
       break;
     case 'reset-clock':
       Game.goToPeriod(state, state.period);
+      clockHeld = false;
       break;
     case 'prev-period':
       Game.goToPeriod(state, state.period - 1);
+      clockHeld = false;
       break;
     case 'next-period':
       Game.goToPeriod(state, state.period + 1);
+      clockHeld = false;
       break;
     case 'remove-player': {
       const box = btn.closest('[data-roster]');
@@ -789,6 +802,7 @@ document.addEventListener('click', (e) => {
       const video = videoUrl !== null ? state.video : null; // il video aperto resta aperto
       state = Game.newGame(state.names, state);
       state.video = video;
+      clockHeld = false;
       correcting.home = correcting.away = false;
       break;
     }
@@ -816,6 +830,7 @@ function openVideo(file) {
   const from = state.video?.name === file.name ? state.video.positionMs : 0;
   state.video = { name: file.name, positionMs: from };
   videoEl.src = videoUrl;
+  videoMark = { s: from / 1000, at: performance.now() }; // riprendere da lì non è un salto del cronometro
   videoEl.addEventListener(
     'loadedmetadata',
     () => {
@@ -827,6 +842,7 @@ function openVideo(file) {
 }
 
 function closeVideo() {
+  clockHeld = false;
   videoEl.pause();
   videoEl.removeAttribute('src');
   videoEl.load();
@@ -857,8 +873,32 @@ $('#video-file').addEventListener('change', (e) => {
   if (file) openVideo(file);
 });
 
+// Il punto del video visto per ultimo. Durante un salto currentTime è già la destinazione: non si segna.
+function markVideo() {
+  if (!videoEl.seeking) videoMark = { s: videoEl.currentTime, at: performance.now() };
+}
+
+// Dove era il video un attimo prima di un salto: l'ultimo punto visto, più il tempo passato se stava andando.
+function videoBeforeSeek() {
+  if (videoEl.paused) return videoMark.s;
+  return videoMark.s + ((performance.now() - videoMark.at) / 1000) * videoEl.playbackRate;
+}
+
+// Ogni spostamento del video (frecce, un'azione toccata nella cronaca, la barra del video) sposta dello stesso
+// tempo il cronometro in gioco, anche se è fermo solo perché è fermo il video. Fermato a mano non si tocca.
+videoEl.addEventListener('seeking', () => {
+  const jumpMs = Math.round((videoEl.currentTime - videoBeforeSeek()) * 1000);
+  videoMark = { s: videoEl.currentTime, at: performance.now() };
+  if (videoUrl === null || !(state.clock.running || clockHeld) || jumpMs === 0) return;
+  Game.moveClock(state, Date.now(), jumpMs);
+  update();
+});
+
+videoEl.addEventListener('seeked', () => markVideo());
+
 // il punto a cui si è arrivati resta salvato, per riprendere da lì dopo aver chiuso la pagina
 videoEl.addEventListener('timeupdate', () => {
+  markVideo();
   if (!state.video || videoUrl === null) return;
   state.video.positionMs = Math.round(videoEl.currentTime * 1000);
   if (Date.now() - videoSavedAt > 2000) {
@@ -866,7 +906,26 @@ videoEl.addEventListener('timeupdate', () => {
     save();
   }
 });
-videoEl.addEventListener('pause', save);
+
+// Il cronometro del tabellone si ferma quando si ferma il video (con lo spazio, con i suoi comandi o perché
+// si parla al microfono) e riparte con lui: così resta al passo con il tabellone inquadrato.
+videoEl.addEventListener('pause', () => {
+  markVideo();
+  if (videoUrl === null || !state.clock.running) {
+    save();
+    return;
+  }
+  Game.pauseClock(state.clock, Date.now());
+  clockHeld = true;
+  update();
+});
+videoEl.addEventListener('play', () => {
+  markVideo();
+  if (!clockHeld || videoUrl === null) return;
+  clockHeld = false;
+  Game.startClock(state.clock, Date.now());
+  update();
+});
 
 // Con il video aperto: spazio avvia e ferma il video, le frecce destra e sinistra lo spostano di 5 secondi
 // (1 con Maiusc). Si ascolta prima di tutto il resto, così il video e il cronometro non reagiscono due volte.
@@ -888,7 +947,8 @@ document.addEventListener(
   true
 );
 
-// toccando un'azione della cronaca il video torna a 3 secondi prima, per rivederla
+// toccando un'azione della cronaca il video torna a 3 secondi prima, per rivederla (e il cronometro in gioco
+// con lui: tornando avanti dov'eri, con le frecce o la barra del video, torna anche lui dov'era)
 $('#log').addEventListener('click', (e) => {
   const row = e.target.closest('li[data-video-ms]');
   if (!row || videoUrl === null) return;
