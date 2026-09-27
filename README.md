@@ -40,8 +40,9 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
   aperto sull'altro dispositivo, il tabellone chiede conferma e le aggiunge, sostituendo quelle con lo stesso nome.
   Dalla pagina aperta come file il link punta comunque al sito online.
 - **Comandi vocali**, da accendere in Impostazioni (accendono anche i giocatori). In fondo allo schermo restano due
-  pulsanti grandi: il cronometro e il microfono. Si tiene premuto il microfono, si parla, si lascia: il tabellone esegue
-  il comando e lo conferma con un bip acuto, o con due bip bassi e il motivo scritto se non ha capito, e sul telefono
+  pulsanti grandi: il cronometro e il microfono. Si tiene premuto il microfono, si parla, si lascia: finché il dito è giù
+  il microfono ascolta, anche con le pause (se il riconoscimento si ferma da solo, riparte e la frase resta una).
+  Il tabellone esegue il comando e lo conferma con un bip acuto, o con due bip bassi e il motivo scritto se non ha capito, e sul telefono
   Android anche con una vibrazione. Si dicono:
   - canestri e falli: «canestro del 25», «canestro da 3 del 25 PC52», «tripla di Rossi», «tiro libero del 7»,
     «2 liberi del 7 ospiti», «fallo del 12», «canestro da 2 ospiti» (alla squadra, senza giocatore);
@@ -116,6 +117,7 @@ periodo. Nel video un'azione si ritrova leggendo il tabellone inquadrato; la fin
 | [game.js](game.js) | Le regole e i calcoli, senza grafica: tabellino, file per il video, comandi vocali |
 | [app.js](app.js) | Collega i pulsanti della pagina alle regole |
 | [voice.js](voice.js) | Il microfono a pulsante: ascolta finché lo si tiene premuto |
+| [tests/voice.test.js](tests/voice.test.js) | Test automatici del microfono a pulsante |
 | [tabellino.js](tabellino.js) | Disegna il tabellino, nel tabellone e nella pagina pubblicata |
 | [tests/game.test.js](tests/game.test.js) | Test automatici delle regole |
 
