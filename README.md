@@ -1,7 +1,7 @@
 # Tabellone Basket
 
 Segnapunti per una partita di pallacanestro, da usare nel browser del computer o del telefono.
-Una pagina sola, senza installare nulla; la connessione serve solo per i comandi vocali con Chrome.
+Una pagina sola, senza installare nulla; la connessione serve solo per i comandi vocali con Chrome e per la diretta.
 
 ## Come si apre
 
@@ -144,6 +144,16 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
 - **File della partita**: scarica un file con tutte le azioni, lo scout, i quintetti e i cambi, il tabellino alla fine
   di ogni periodo e i comandi non registrati, tutto agganciato al tempo del tabellone: serve al montatore insieme al
   video della partita e alle statistiche su un altro dispositivo (vedi sotto).
+- **Diretta online**: «Avvia diretta», sotto il tabellino, crea il link di una pagina ([diretta.html](diretta.html))
+  che chiunque apre dal telefono per seguire la partita mentre la segni: punteggio, periodo, tempo che scorre,
+  falli di squadra con il BONUS, timeout rimasti, la cronaca (canestri, falli, timeout, quintetti e cambi, con
+  numeri e nomi) e il tabellino dei giocatori. Il link lo mandi nel gruppo con «Link della diretta» o toccando il
+  segnale «● DIRETTA» sopra il cronometro; ogni partita ha il suo, che a fine partita resta con il risultato.
+  La prima volta il tabellone chiede di entrare con Google, e la diretta la scrive solo l'account autorizzato;
+  funziona dal tabellone online, non da quello aperto come file. Senza rete il segnale diventa grigio e chi guarda
+  legge che il tabellone non è collegato: quello che segni intanto arriva appena la rete torna. «Ferma diretta» la
+  chiude, e «Nuova partita» chiude quella della partita di prima. Con il tempo detto a voce la pagina mostra il
+  tempo dell'ultima azione.
 - **Schermo intero** con il pulsante in alto a destra, comodo su un tablet a bordo campo; si esce con lo stesso
   pulsante o con Esc. Sull'iPhone il browser non lo permette e il pulsante non compare.
 
@@ -175,6 +185,31 @@ Ogni voce è agganciata al tempo del tabellone, non all'ora: `periodo` («Q3»),
 legge sul tabellone («2:26», e nell'ultimo minuto «45.3») e `ms_restanti`, i millisecondi che mancano alla fine del
 periodo. Nel video un'azione si ritrova leggendo il tabellone inquadrato; la fine di ogni periodo è a 0:00.
 
+## La diretta con Firebase
+
+La diretta sta in un database Realtime Database di Firebase, piano gratuito Spark: fino a 100 persone collegate
+insieme e 10 GB scaricati al mese (una partita seguita da 100 persone ne usa circa 10 MB). Il tabellone manda solo
+quello che cambia, a pezzi, sotto `dirette/<codice della diretta>`:
+
+- `stato`: nomi e colori delle squadre, punti, falli del periodo, timeout rimasti, periodo e cronometro. Il
+  cronometro viaggia come tempo che resta (`ms`), se corre (`in_corsa`) e l'istante in cui lo si è letto (`alle`,
+  nell'ora del server Firebase): la pagina di chi guarda lo fa scorrere da sola;
+- `cronaca`: un'azione per chiave (`a0`, `a1`…, la sua posizione fra le azioni del tabellone), con periodo, tempo,
+  squadra, la stessa `scritta` del file della partita e il punteggio dopo l'azione;
+- `tabellino`: il tabellino nel formato del link di [tabellino.html](tabellino.html);
+- `collegato` (falso da solo quando il tabellone perde la rete o si chiude), `chiusa`, `creata` e `aggiornata`.
+
+Chi può scrivere lo decidono le regole in [database.rules.json](database.rules.json): ogni diretta si legge solo
+conoscendone il codice (l'elenco non si legge) e la scrive solo l'account Google autorizzato. I dati del progetto
+in [live.js](live.js) non sono segreti: stanno in ogni pagina che usa Firebase.
+
+**Prova sul computer, con l'emulatore di Firebase** (serve Java e `npm i -g firebase-tools`): dalla cartella del
+repository `firebase emulators:start --only auth,database --project demo-tabellone` e, in un'altra finestra,
+`python3 -m http.server 8000`; poi si apre il tabellone su
+[http://localhost:8000/?emulatore](http://localhost:8000/?emulatore). Con `?emulatore` il tabellone usa l'emulatore
+al posto del progetto vero (solo da localhost), anche nel link della diretta, e la finestra di Google è quella finta
+dell'emulatore, dove si inventa un account.
+
 ## File
 
 | File | Contenuto |
@@ -184,11 +219,16 @@ periodo. Nel video un'azione si ritrova leggendo il tabellone inquadrato; la fin
 | [statistiche.html](statistiche.html) | La pagina dell'archivio e delle statistiche della stagione |
 | [statistiche.js](statistiche.js) | Archivio, tabellino con lo scout e statistiche della stagione nella pagina |
 | [style.css](style.css) | La grafica, anche per il telefono |
-| [game.js](game.js) | Le regole e i calcoli, senza grafica: tabellino e scout, file della partita, archivio e statistiche, comandi vocali |
+| [game.js](game.js) | Le regole e i calcoli, senza grafica: tabellino e scout, file della partita, archivio e statistiche, comandi vocali, cosa pubblicare nella diretta |
 | [app.js](app.js) | Collega i pulsanti della pagina alle regole |
 | [voice.js](voice.js) | Il microfono a pulsante: ascolta finché lo si tiene premuto |
 | [tests/voice.test.js](tests/voice.test.js) | Test automatici del microfono a pulsante |
 | [tabellino.js](tabellino.js) | Disegna il tabellino, nel tabellone e nella pagina pubblicata |
+| [diretta.html](diretta.html) | La pagina della diretta, per chi segue la partita |
+| [diretta.js](diretta.js) | Mostra la diretta e fa scorrere il cronometro |
+| [live.js](live.js) | La diretta con Firebase: il tabellone la scrive, la pagina della diretta la legge |
+| [database.rules.json](database.rules.json) | Le regole del database: chi legge e chi scrive la diretta |
+| [firebase.json](firebase.json) | Le impostazioni per provare la diretta con l'emulatore di Firebase |
 | [tests/game.test.js](tests/game.test.js) | Test automatici delle regole |
 
 ## Test

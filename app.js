@@ -53,6 +53,7 @@ function load() {
       saved.notes ??= []; // e prima dei comandi non registrati
       saved.colors ??= { home: '', away: '' }; // e prima del colore delle maglie
       saved.video ??= null; // e prima del video dentro il tabellone
+      saved.live ??= null; // e prima della diretta
       saved.rosters ??= { home: [], away: [] };
       saved.playerNames ??= { home: {}, away: {} }; // e prima dei nomi
       saved.origins ??= { home: null, away: null }; // e prima di «Modifica»
@@ -70,6 +71,7 @@ function save() {
   } catch {
     // senza storage il tabellone funziona lo stesso, solo non sopravvive a un ricaricamento
   }
+  Live.changed();
 }
 
 function loadLibrary() {
@@ -141,6 +143,7 @@ function render() {
   renderClock();
   renderLog();
   Tabellino.render($('#box'), Game.boxScore(state, Date.now()));
+  renderLive();
   renderSettings();
 }
 
@@ -377,6 +380,97 @@ function publishBox() {
     ask: 'Copia il link del tabellino:',
   });
 }
+
+// ——— La diretta ———
+// «Avvia diretta» dà il link di diretta.html, dove chiunque segue la partita mentre la segni: punteggio,
+// tempo, cronaca e tabellino arrivano da Firebase (live.js). Scrive solo chi entra con l'account autorizzato.
+
+let liveStatus = { connected: false };
+
+const LIVE_ERRORS = {
+  'auth/popup-blocked': 'Il browser ha bloccato la finestra di Google: premi di nuovo «Avvia diretta».',
+  'auth/popup-closed-by-user': 'Accesso con Google annullato: la diretta non è partita.',
+  'auth/cancelled-popup-request': 'Accesso con Google annullato: la diretta non è partita.',
+  'auth/network-request-failed': 'Senza rete la diretta non parte: riprova quando sei collegato.',
+  'auth/unauthorized-domain': 'Questo indirizzo non è fra i domini autorizzati del progetto Firebase.',
+  'auth/operation-not-allowed': 'Nel progetto Firebase l\'accesso con Google non è attivo.',
+};
+
+async function startLive() {
+  const note = $('#box-note');
+  if (!Live.available()) {
+    if (!location.protocol.startsWith('http')) {
+      const site = document.createElement('a');
+      site.href = SITE_URL;
+      site.textContent = 'tabellone online';
+      note.replaceChildren('La diretta parte dal ', site, ': aperto come file il tabellone non può entrare con Google.');
+    } else {
+      note.textContent = 'La diretta non è ancora collegata al progetto Firebase.';
+    }
+    return;
+  }
+  note.textContent = 'Avvio la diretta…';
+  try {
+    const live = await Live.start();
+    state.live ??= live; // «Riprendi diretta» tiene il link di prima
+    update();
+    // se l'accesso era già fatto il clic vale ancora e il link si manda subito; se no si manda con il pulsante
+    if (navigator.userActivation?.isActive) shareLive();
+    else note.textContent = 'Diretta avviata: con «Link della diretta» lo mandi nel gruppo della squadra.';
+  } catch (err) {
+    note.textContent = LIVE_ERRORS[err?.code] ?? 'Non riesco ad avviare la diretta: controlla la rete e riprova.';
+  }
+}
+
+function shareLive() {
+  if (!state.live) return;
+  const { home, away } = state.names;
+  shareUrl(Live.link(state.live.id), {
+    title: `Diretta ${home} – ${away}`,
+    text: `${home} – ${away} in diretta: punteggio, tempo e cronaca.`,
+    note: $('#box-note'),
+    copied: 'Link della diretta copiato: incollalo nel gruppo della squadra.',
+    ask: 'Copia il link della diretta:',
+  });
+}
+
+function stopLive() {
+  if (!confirm('Fermo la diretta? Chi la segue vede il punteggio di adesso, con la scritta «Diretta chiusa».')) return;
+  state.live = null;
+  update();
+  $('#box-note').textContent = 'Diretta chiusa: il link mostra la partita fino a qui.';
+}
+
+// Il segnale DIRETTA: rosso se arriva a chi guarda, grigio senza rete (Firebase manda tutto quando la rete torna)
+// o se bisogna rientrare con Google per riprenderla.
+function renderLive() {
+  const on = Boolean(state.live);
+  const stopped = on && liveStatus.signedOut;
+  const badge = $('#live-badge');
+  badge.hidden = !on;
+  badge.classList.toggle('offline', stopped || !liveStatus.connected);
+  badge.textContent = stopped ? '● DIRETTA FERMA' : liveStatus.connected ? '● DIRETTA' : '● DIRETTA · SENZA RETE';
+  badge.title = liveStatus.email ? `Diretta di ${liveStatus.email}: tocca per mandare il link` : 'Tocca per mandare il link';
+  const startBtn = $('[data-action="live-start"]');
+  startBtn.hidden = on && !stopped;
+  startBtn.textContent = stopped ? 'Riprendi diretta' : 'Avvia diretta';
+  $('.live-actions [data-action="live-share"]').hidden = !on;
+  $('[data-action="live-stop"]').hidden = !on;
+}
+
+Live.init({
+  getState: () => state,
+  onStatus(status) {
+    liveStatus = status;
+    if (status.denied && state.live?.id === status.id) {
+      state.live = null;
+      save();
+      $('#box-note').textContent =
+        `L'account ${status.denied} non può scrivere la diretta: premi «Avvia diretta» e scegli il tuo account.`;
+    }
+    renderLive();
+  },
+});
 
 // Il file della partita: azioni, scout e tabellini agganciati al tempo del tabellone, per il montatore
 // e per l'archivio delle statistiche su un altro dispositivo.
@@ -784,6 +878,15 @@ document.addEventListener('click', (e) => {
     case 'publish-box':
       publishBox();
       return;
+    case 'live-start':
+      startLive();
+      return;
+    case 'live-share':
+      shareLive();
+      return;
+    case 'live-stop':
+      stopLive();
+      return;
     case 'game-file':
       downloadGameFile();
       return;
@@ -800,10 +903,12 @@ document.addEventListener('click', (e) => {
     case 'new-game': {
       if (!confirm('Nuova partita? Punteggio, falli, timeout e cronaca verranno azzerati.')) return;
       const video = videoUrl !== null ? state.video : null; // il video aperto resta aperto
-      state = Game.newGame(state.names, state);
+      const wasLive = Boolean(state.live);
+      state = Game.newGame(state.names, state); // la diretta è di una partita: la nuova ne ha una sua
       state.video = video;
       clockHeld = false;
       correcting.home = correcting.away = false;
+      if (wasLive) $('#box-note').textContent = 'La diretta della partita di prima è chiusa: per questa premi «Avvia diretta».';
       break;
     }
     case 'close-video':
@@ -1129,3 +1234,5 @@ window.addEventListener('resize', render);
 importFromLink();
 render();
 setInterval(tick, 100);
+Live.changed(); // riprende la diretta dopo un ricaricamento della pagina
+setTimeout(Live.preload, 2000); // così la finestra di Google si apre subito al clic su «Avvia diretta»

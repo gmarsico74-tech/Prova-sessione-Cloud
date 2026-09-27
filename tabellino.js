@@ -123,7 +123,7 @@
     render(container, box);
   }
 
-  root.Tabellino = { render };
+  root.Tabellino = { render, longDate };
 
   if (document.body?.dataset.page === 'tabellino') {
     showPublished();

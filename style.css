@@ -1017,6 +1017,89 @@ input:focus-visible {
   color: var(--away);
 }
 
+/* La diretta: il segnale nel tabellone e la pagina di chi guarda (diretta.html) */
+
+.live-badge {
+  align-self: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-color: transparent;
+  background: color-mix(in srgb, var(--clock) 18%, transparent);
+  color: var(--clock);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+/* senza rete, o fermo finché non si rientra con Google */
+.live-badge.offline {
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.box-actions.live-actions {
+  margin-top: 8px;
+}
+
+.live-state {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  text-align: right;
+  color: var(--muted);
+}
+
+.live-state[data-kind="live"],
+.live-state[data-kind="error"] {
+  color: var(--clock);
+}
+
+.live-state[data-kind="live"] {
+  font-weight: 700;
+}
+
+.live-board .team-name {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.live-board .team-name:hover {
+  border-color: transparent;
+}
+
+.live-status {
+  min-height: 1.4em;
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.live-board .log {
+  max-height: 60vh;
+}
+
+.live-feed li {
+  padding-left: 8px;
+  border-left: 3px solid var(--accent);
+}
+
+.live-feed li[data-side="casa"] {
+  --accent: var(--home);
+}
+
+.live-feed li[data-side="ospiti"] {
+  --accent: var(--away);
+}
+
+.live-feed li.basket .who {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.live-board .published-foot {
+  margin-bottom: 0;
+}
+
 /* Il video della partita dentro il tabellone: grande in alto, con la barra dei comandi a voce sotto */
 
 .video-panel {

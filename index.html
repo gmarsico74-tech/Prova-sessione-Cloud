@@ -72,6 +72,7 @@
 
     <section class="center">
       <div class="center-inner">
+        <button type="button" data-action="live-share" class="live-badge" id="live-badge" title="Manda di nuovo il link della diretta" hidden>● DIRETTA</button>
         <div class="period-row">
           <button data-action="prev-period" aria-label="Periodo precedente">◀</button>
           <div id="period" class="period">Q1</div>
@@ -131,12 +132,19 @@
         <button type="button" data-action="game-file">File della partita</button>
         <a class="button-link" href="statistiche.html">Statistiche</a>
       </div>
+      <div class="box-actions live-actions">
+        <button type="button" data-action="live-start">Avvia diretta</button>
+        <button type="button" data-action="live-share" hidden>Link della diretta</button>
+        <button type="button" data-action="live-stop" hidden>Ferma diretta</button>
+      </div>
       <p class="box-help">
         «Pubblica tabellino» crea un link che chiunque può aprire, per esempio nel gruppo WhatsApp: mostra il
         tabellino com'è in quel momento. «Salva nell'archivio» conserva la partita su questo dispositivo:
         in «Statistiche» ci sono il tabellino con tutto lo scout e le medie della stagione. «File della partita»
         scarica lo stesso contenuto in un file, da dare al montatore per le scritte sul video o da aggiungere
-        alle statistiche su un altro dispositivo.
+        alle statistiche su un altro dispositivo. «Avvia diretta» crea il link di una pagina che mostra a
+        chiunque punteggio, tempo, cronaca e tabellino mentre segni la partita; la prima volta chiede di entrare
+        con il tuo account Google.
       </p>
       <p class="note" id="box-note" aria-live="polite"></p>
     </section>
@@ -300,6 +308,7 @@
   <script src="game.js"></script>
   <script src="tabellino.js"></script>
   <script src="voice.js"></script>
+  <script src="live.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
