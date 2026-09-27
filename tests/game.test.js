@@ -583,6 +583,22 @@ test('il tabellino passa dentro un link e torna uguale; un link rovinato non si 
   assert.equal(Game.decodeBox('rovinato'), null);
 });
 
+test('il link si apre anche con il testo del messaggio attaccato dietro, come quando lo si incolla nel browser', () => {
+  const state = gameWithPlayers();
+  Game.addPoints(state, 0, 'home', 2, 25);
+  const text = Game.encodeBox(Game.boxScore(state, 0), { date: '2026-09-27', status: 'Q2 10:00' });
+  const message = ' PC52 2 – 0 OSPITI · Q2 10:00';
+  const pasted = new URL(`https://gmarsico74-tech.github.io/Prova-sessione-Cloud/tabellino.html#${text}${message}`);
+  assert.match(pasted.hash, /%20PC52%20/, 'nella barra del browser gli spazi diventano %20');
+  for (const hash of [pasted.hash.slice(1), text + message, `${text}\n`, ` ${text}`]) {
+    assert.equal(Game.linkCode(hash), text);
+    assert.equal(Game.boxTotals(Game.decodeBox(hash).teams.home).pts, 2);
+  }
+  const teams = Game.encodeLibrary(LIBRARY);
+  assert.deepEqual(Game.decodeLibrary(`${teams}%20Apri%20il%20link%20per%20aggiungere%20le%20squadre`), LIBRARY);
+  assert.equal(Game.decodeBox(text.slice(0, 30) + message), null, 'un link tagliato resta rovinato');
+});
+
 test('lo stato della partita: periodo e tempo, fine periodo, finale', () => {
   const state = Game.newGame(NAMES);
   assert.equal(Game.gameStatus(state, 0), 'Q1 10:00');

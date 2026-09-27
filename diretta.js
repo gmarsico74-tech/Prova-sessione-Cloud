@@ -106,11 +106,13 @@ function render() {
 }
 
 async function start() {
-  const id = location.hash.slice(1);
+  // condividendo, il telefono attacca al link il testo del messaggio: conta solo il codice della diretta
+  const id = location.hash.slice(1).split(/[^a-z0-9]/)[0];
   if (!Live.ID_PATTERN.test(id)) {
     showState('Questo link della diretta è rovinato o incompleto: fattelo rimandare.', 'error');
     return;
   }
+  if (location.hash !== `#${id}`) history.replaceState(null, '', `#${id}`);
   try {
     serverNow = await Live.watch(id, {
       onData(doc) {

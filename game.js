@@ -381,9 +381,16 @@
     return `${SHARE_VERSION}.${base64}`;
   }
 
+  // Il codice all'inizio del testo di un link, senza quello che gli è rimasto attaccato dopo: condividendo,
+  // il telefono o il computer mettono il testo del messaggio («PC52 7 – 12 Revolution CF · Q2 10:00») dietro
+  // al link, e incollato nella barra del browser finisce dentro l'indirizzo (con %20 al posto degli spazi).
+  function linkCode(text) {
+    return /^\w*\.[\w-]*/.exec(String(text).trim())?.[0] ?? '';
+  }
+
   // Il contenuto del link; se è rovinato o di un'altra versione lancia un errore.
   function fromLinkText(text) {
-    const [version, data] = String(text).split('.');
+    const [version, data] = linkCode(text).split('.');
     if (version !== SHARE_VERSION || !data) throw new Error('link non valido');
     const binary = atob(data.replace(/-/g, '+').replace(/_/g, '/'));
     return JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0))));
@@ -2024,6 +2031,7 @@
     statusText,
     encodeBox,
     decodeBox,
+    linkCode,
     efficiency,
     statName,
     gameFile,

@@ -105,7 +105,10 @@
 
   // La pagina del tabellino pubblicato: tutto quello che mostra sta nel link.
   function showPublished() {
-    const box = Game.decodeBox(location.hash.slice(1));
+    const code = Game.linkCode(location.hash.slice(1));
+    const box = Game.decodeBox(code);
+    // il testo attaccato al link condividendolo si toglie anche dalla barra degli indirizzi
+    if (box && location.hash !== `#${code}`) history.replaceState(null, '', `#${code}`);
     const title = document.getElementById('match');
     const when = document.getElementById('when');
     const container = document.getElementById('box');
