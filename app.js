@@ -4,6 +4,7 @@
 
 const STORAGE_KEY = 'tabellone-basket';
 const LIBRARY_KEY = 'tabellone-squadre'; // le squadre salvate restano anche dopo «Nuova partita»
+const ARCHIVE_KEY = 'tabellone-archivio'; // le partite per le statistiche della stagione (le legge statistiche.html)
 const SITE_URL = 'https://gmarsico74-tech.github.io/Prova-sessione-Cloud/';
 const SHARE_PREFIX = '#squadre=';
 const TEAMS = ['home', 'away'];
@@ -15,12 +16,18 @@ const shotEl = $('#shot');
 const talkBtn = $('#talk');
 const voiceStatus = $('#voice-status');
 
-// Tasti di un telecomando Bluetooth (per presentazioni o per selfie) con i comandi vocali accesi:
-// tenuti giù aprono il microfono, oppure avviano e fermano il cronometro.
-const TALK_KEYS = ['Enter', 'PageDown'];
-const CLOCK_KEYS = ['PageUp'];
+// Con i comandi vocali accesi: sulla tastiera del Mac il tasto Option (alt) tenuto giù apre il microfono
+// (il tasto fn il Mac non lo passa alle pagine web) e la barra spaziatrice avvia e ferma il cronometro.
+// Un telecomando Bluetooth per presentazioni o volta pagina manda Pagina giù/su o le frecce, un telecomando
+// per selfie Invio: un tasto apre il microfono, l'altro avvia e ferma il cronometro.
+const TALK_KEYS = ['Alt', 'Enter', 'PageDown', 'ArrowRight', 'ArrowDown'];
+const CLOCK_KEYS = ['PageUp', 'ArrowLeft', 'ArrowUp'];
+// Un tasto premuto e lasciato subito (molti telecomandi fanno così) apre il microfono finché non lo si ripreme.
+const TAP_MS = 300;
 
 let state = load();
+let keyTalk = null; // il tasto del microfono: { since, latched } finché il microfono è aperto da tastiera
+let wakeLock = null; // con i comandi vocali lo schermo resta acceso
 let library = loadLibrary();
 let audioCtx = null;
 
@@ -37,6 +44,7 @@ function load() {
       saved.settings.voice ??= false; // e prima dei comandi vocali
       saved.settings.timeSource ??= 'app'; // e prima del tempo detto a voce
       saved.date ??= null; // e prima del giorno della partita
+      saved.notes ??= []; // e prima dei comandi non registrati
       saved.rosters ??= { home: [], away: [] };
       saved.playerNames ??= { home: {}, away: {} }; // e prima dei nomi
       saved.origins ??= { home: null, away: null }; // e prima di «Modifica»
@@ -77,6 +85,7 @@ function saveLibrary() {
 function update() {
   save();
   render();
+  keepAwake();
 }
 
 function render() {
@@ -355,11 +364,12 @@ function publishBox() {
   });
 }
 
-// Il file per il montatore: azioni, cronometro e tabellini con l'ora vera, da unire al video della partita.
-function downloadVideoFile() {
+// Il file della partita: azioni, scout e tabellini agganciati al tempo del tabellone, per il montatore
+// e per l'archivio delle statistiche su un altro dispositivo.
+function downloadGameFile() {
   const now = Date.now();
-  const name = Game.videoFileName(state, now);
-  const blob = new Blob([JSON.stringify(Game.videoFile(state, now), null, 2)], { type: 'application/json' });
+  const name = Game.gameFileName(state, now);
+  const blob = new Blob([JSON.stringify(Game.gameFile(state, now), null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = name;
@@ -370,7 +380,31 @@ function downloadVideoFile() {
   $('#box-note').textContent =
     state.events.length === 0
       ? `Scaricato «${name}», ma non ci sono ancora azioni.`
-      : `Scaricato «${name}»: mandalo sul Mac insieme al video della partita.`;
+      : `Scaricato «${name}»: serve al montatore insieme al video, e alle statistiche su un altro dispositivo.`;
+}
+
+// Salva la partita nell'archivio di questo dispositivo, da cui la pagina delle statistiche fa tabellini e medie.
+// Salvarla di nuovo (stesso giorno e stesse squadre) la aggiorna.
+function saveToArchive() {
+  const note = $('#box-note');
+  let archive = [];
+  try {
+    const saved = JSON.parse(localStorage.getItem(ARCHIVE_KEY));
+    if (Array.isArray(saved)) archive = saved;
+  } catch {
+    // archivio illeggibile: si riparte da uno vuoto
+  }
+  const entry = Game.archiveEntry(state, Date.now());
+  const again = archive.some((g) => g.id === entry.id);
+  try {
+    localStorage.setItem(ARCHIVE_KEY, JSON.stringify(Game.storeGame(archive, entry)));
+  } catch {
+    note.textContent = 'Non riesco a salvare nell\'archivio: scarica il «File della partita» e aggiungilo dalle statistiche.';
+    return;
+  }
+  note.textContent = again
+    ? 'Partita aggiornata nell\'archivio: la trovi in Statistiche.'
+    : 'Partita salvata nell\'archivio: la trovi in Statistiche.';
 }
 
 // Aperto un link con le squadre, le aggiunge a quelle salvate dopo averlo chiesto.
@@ -436,6 +470,8 @@ function renderLog() {
       what = `in campo ${e.on.join(' ')}`;
     } else if (e.type === 'sub') {
       what = `entra ${e.in.join(' ')}, esce ${e.out.join(' ')}`;
+    } else if (e.type === 'stat') {
+      what = Game.statName(e).toLowerCase();
     } else {
       what = 'timeout';
     }
@@ -450,7 +486,24 @@ function renderLog() {
     );
     return li;
   });
-  $('#log').replaceChildren(...items.reverse());
+  // i comandi a voce non registrati, in grigio, al punto della cronaca in cui sono stati detti
+  const notes = state.notes.map((n) => {
+    const li = document.createElement('li');
+    li.className = 'unheard';
+    li.title = n.reason;
+    li.append(
+      cell('when', `${Game.periodLabel(n.period)} ${Game.formatClock(n.clockMs)}`),
+      cell('who', `non registrato: «${n.heard}» · ${n.reason}`),
+      cell('result', '')
+    );
+    return { after: n.after, li };
+  });
+  const rows = [];
+  for (let i = 0; i <= items.length; i++) {
+    for (const n of notes) if (Math.min(n.after, items.length) === i) rows.push(n.li);
+    if (i < items.length) rows.push(items[i]);
+  }
+  $('#log').replaceChildren(...rows.reverse());
 }
 
 function cell(className, text) {
@@ -516,6 +569,10 @@ function showVoice(kind, message, heard) {
 
 function voiceResult({ at, heard, error }) {
   talkBtn.classList.remove('listening');
+  if (keyTalk) {
+    keyTalk = null; // il microfono si è chiuso da solo (per esempio senza permesso): il tasto riparte da capo
+    talk?.release();
+  }
   const outcome = heard.length
     ? Game.voiceCommand(state, at, heard)
     : { ok: false, message: Voice.explain(error), heard: '' };
@@ -524,12 +581,12 @@ function voiceResult({ at, heard, error }) {
     tone(880, 0, 0.08);
     navigator.vibrate?.(40);
     correcting.home = correcting.away = false;
-    update();
   } else {
     tone(196, 0, 0.12);
     tone(196, 0.2, 0.12);
     navigator.vibrate?.([80, 60, 80]);
   }
+  update(); // anche un comando non capito resta nella cronaca
 }
 
 function pressTalk() {
@@ -685,8 +742,11 @@ document.addEventListener('click', (e) => {
     case 'publish-box':
       publishBox();
       return;
-    case 'video-file':
-      downloadVideoFile();
+    case 'game-file':
+      downloadGameFile();
+      return;
+    case 'archive-game':
+      saveToArchive();
       return;
     case 'delete-team': {
       const name = btn.closest('[data-saved]').dataset.saved;
@@ -707,10 +767,17 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.target.closest('input')) return;
+  if (e.target.closest('input, select')) return;
   if (state.settings.voice && TALK_KEYS.includes(e.key)) {
     e.preventDefault();
-    if (!e.repeat) pressTalk();
+    if (e.repeat) return;
+    if (keyTalk?.latched) {
+      keyTalk = null;
+      releaseTalk();
+      return;
+    }
+    keyTalk = { since: performance.now(), latched: false };
+    pressTalk();
   } else if (state.settings.voice && CLOCK_KEYS.includes(e.key)) {
     e.preventDefault();
     if (e.repeat) return;
@@ -718,6 +785,7 @@ document.addEventListener('keydown', (e) => {
     update();
   } else if (e.code === 'Space') {
     e.preventDefault();
+    if (e.repeat) return;
     toggleClock(Date.now());
     update();
   } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
@@ -758,11 +826,37 @@ for (const input of document.querySelectorAll('.roster-team-name')) {
 }
 
 document.addEventListener('keyup', (e) => {
-  if (state.settings.voice && TALK_KEYS.includes(e.key)) {
-    e.preventDefault();
-    releaseTalk();
+  if (!state.settings.voice || !TALK_KEYS.includes(e.key) || !keyTalk) return;
+  e.preventDefault();
+  if (performance.now() - keyTalk.since < TAP_MS) {
+    keyTalk.latched = true; // premuto e lasciato subito: il microfono resta aperto fino alla prossima pressione
+    showVoice('listening', 'Ti ascolto: premi di nuovo il tasto quando hai finito.');
+    return;
   }
+  keyTalk = null;
+  releaseTalk();
 });
+
+// Con i comandi vocali lo schermo non si spegne da solo: il telefono resta pronto in mano o sul tavolo.
+async function keepAwake() {
+  const want = state.settings.voice && document.visibilityState === 'visible';
+  if (!want) {
+    wakeLock?.release().catch(() => {});
+    wakeLock = null;
+    return;
+  }
+  if (wakeLock || !navigator.wakeLock) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => {
+      wakeLock = null;
+    });
+  } catch {
+    // il browser non lo permette: lo schermo si spegne con le sue regole
+  }
+}
+
+document.addEventListener('visibilitychange', keepAwake);
 
 $('#shot-clock').addEventListener('change', (e) => {
   state.settings.shotClock = e.target.checked;

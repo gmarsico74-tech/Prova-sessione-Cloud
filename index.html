@@ -100,12 +100,16 @@
       <div id="box" class="box"></div>
       <div class="box-actions">
         <button type="button" data-action="publish-box">Pubblica tabellino</button>
-        <button type="button" data-action="video-file">File per il video</button>
+        <button type="button" data-action="archive-game">Salva nell'archivio</button>
+        <button type="button" data-action="game-file">File della partita</button>
+        <a class="button-link" href="statistiche.html">Statistiche</a>
       </div>
       <p class="box-help">
-        «Pubblica tabellino» crea un link che chiunque può aprire, per esempio nel gruppo WhatsApp:
-        mostra il tabellino com'è in quel momento. «File per il video» scarica il file da dare al montatore
-        per scrivere sul video chi segna e chi fa fallo.
+        «Pubblica tabellino» crea un link che chiunque può aprire, per esempio nel gruppo WhatsApp: mostra il
+        tabellino com'è in quel momento. «Salva nell'archivio» conserva la partita su questo dispositivo:
+        in «Statistiche» ci sono il tabellino con tutto lo scout e le medie della stagione. «File della partita»
+        scarica lo stesso contenuto in un file, da dare al montatore per le scritte sul video o da aggiungere
+        alle statistiche su un altro dispositivo.
       </p>
       <p class="note" id="box-note" aria-live="polite"></p>
     </section>
@@ -147,12 +151,15 @@
           non all'ora: così vale anche per una partita segnata guardando il video.
         </p>
         <ul>
-          <li>«canestro del 25» · «canestro da 3 del 25 PC52» · «tripla di Rossi»</li>
-          <li>«tiro libero del 7» · «2 liberi del 7 ospiti»</li>
-          <li>«fallo del 12» · «fallo del 14 ospiti» · «canestro da 2 ospiti», alla squadra senza giocatore</li>
-          <li>«quintetto 4 7 9 12 25 PC52 inizio del primo quarto»</li>
-          <li>«entra il 12, esce il 7» · «entrano 12 e 14, escono 7 e 9»</li>
-          <li>«annulla»</li>
+          <li>«canestro del 25» · «canestro da 3 del 25 PC52» · «tripla di Rossi» · «2 liberi del 7 ospiti»</li>
+          <li>«tiro sbagliato del 25» · «tripla sbagliata del 4» · «tiro libero sbagliato del 7»</li>
+          <li>«rimbalzo in difesa del 12» · «rimbalzo offensivo del 4» · «assist del 9»</li>
+          <li>«palla persa del 23» · «palla recuperata dal 32» · «stoppata del 12» · «4 stoppato»</li>
+          <li>«fallo del 12» · «fallo subito dal 25» · «canestro da 2 ospiti», alla squadra senza giocatore</li>
+          <li>più azioni insieme: «palla persa del 23, recuperata dal 32» · «canestro del 4, assist del 25» ·
+            «fallo del 12 sul 25» · «stoppata del 12 sul 4» · «tiro sbagliato del 25, rimbalzo del 12»</li>
+          <li>«quintetto 4 7 9 12 25 PC52 inizio del primo quarto» · «entra il 12, esce il 7»</li>
+          <li>«annulla», che toglie tutto l'ultimo comando</li>
         </ul>
         <p>
           Il tempo si dice così: «2 minuti e 26 secondi del terzo quarto», «terzo quarto, 2 e 26», «al 2 e 26»,
@@ -160,13 +167,21 @@
           vale quello del tabellone. Con il tempo dal cronometro dirlo non serve; se lo dici, vale quello detto.
         </p>
         <p>
-          Il canestro senza valore vale 2. La squadra si dice con il suo nome, oppure «casa» e «ospiti», e serve
-          solo se il numero c'è in tutte e due le squadre o se non c'è ancora: in quel caso il giocatore viene
-          aggiunto. I minuti in campo si contano dal primo quintetto detto; chi è in campo ha il numero segnato in verde.
+          Il canestro e il tiro sbagliato senza valore sono da 2. La squadra si dice con il suo nome, oppure
+          «casa» e «ospiti», e serve solo se il numero c'è in tutte e due le squadre o se non c'è ancora: in quel
+          caso il giocatore viene aggiunto. Nei comandi con più azioni la squadra si capisce da sola: chi recupera
+          è dell'altra squadra, chi fa assist della stessa. Il rimbalzo senza «attacco» o «difesa» si capisce
+          dal tiro sbagliato di prima. I minuti in campo e il più/meno si contano dal primo quintetto detto;
+          chi è in campo ha il numero segnato in verde. Un comando non capito resta in grigio nella cronaca,
+          con la frase sentita, così non si perde.
         </p>
         <p>
-          Con un telecomando Bluetooth per presentazioni o per selfie il microfono si tiene premuto anche con
-          i tasti Invio o Pagina giù, e Pagina su avvia e ferma il cronometro.
+          Dal Mac: tieni premuto il tasto Option (alt) per parlare e usa la barra spaziatrice per il cronometro;
+          la finestra del tabellone deve essere quella in primo piano. Con un telecomando Bluetooth per
+          presentazioni o volta pagina un tasto apre il microfono (Pagina giù, freccia destra o giù, Invio)
+          e l'altro avvia e ferma il cronometro (Pagina su, freccia sinistra o su). Se il telecomando non
+          tiene il tasto premuto, premi una volta per aprire il microfono e una volta per chiuderlo.
+          Con i comandi vocali lo schermo del telefono resta acceso.
         </p>
         <p class="error" id="voice-support"></p>
       </div>
