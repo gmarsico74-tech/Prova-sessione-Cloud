@@ -1117,3 +1117,29 @@ test('un colore detto che non è di nessuna squadra: si spiega dove scriverlo', 
   assert.match(Game.parseCommand(state, 'canestro del 45 bianco al 5 e 00', 0).error, /«bianco» non è il colore di nessuna squadra/);
   assert.match(Game.parseCommand(state, 'canestro del 45 al 5 e 00', 0).error, /di' anche la squadra o il colore della maglia/);
 });
+
+test('«il 24 stoppa il tiro del 15»: chi è prima del verbo lo fa, chi è dopo lo subisce', () => {
+  const state = colorGame();
+  Game.addPlayer(state, 'home', 4);
+  Game.addPlayer(state, 'away', 15);
+  Game.addPlayer(state, 'away', 6);
+  const t = ' al 5 e 00';
+  const cases = [
+    ['numero 24 bianco Stoppa il tiro del numero 15 blu', [['blk', 'home', 24, '', ''], ['miss', 'away', 15, 2, 'stoppato']]],
+    ['numero 24 bianco stoppa il tiro da 3 del numero 15 blu', [['blk', 'home', 24, '', ''], ['miss', 'away', 15, 3, 'stoppato']]],
+    ['il 24 stoppa il 15', [['blk', 'home', 24, '', ''], ['miss', 'away', 15, 2, 'stoppato']], '15 in tutte e due: è dell\'altra squadra'],
+    ['il 15 blu stoppato dal 24 bianco', [['miss', 'away', 15, 2, 'stoppato'], ['blk', 'home', 24, '', '']]],
+    ['il 6 blu subisce fallo dal 4 bianco', [['fd', 'away', 6, '', ''], ['foul', 'home', 4, '', '']]],
+  ];
+  for (const [heard, expected, why] of cases) assert.deepEqual(items(state, heard + t), expected, why ?? heard);
+});
+
+test('un fallo o una stoppata fra due giocatori della stessa squadra, o con un colore sconosciuto, non si registrano', () => {
+  const state = colorGame();
+  Game.addPlayer(state, 'home', 4);
+  Game.addPlayer(state, 'away', 6);
+  const t = ' al 5 e 00';
+  assert.match(Game.parseCommand(state, 'fallo del 4 bianco sul 6 bianco' + t, 0).error, /stessa squadra/);
+  assert.match(Game.parseCommand(state, 'fallo del numero 4 blu sul numero 6 rosso' + t, 0).error, /«rosso» non è il colore di nessuna squadra/);
+  assert.deepEqual(items(state, 'fallo del numero 4 bianco sul numero 6 blu' + t), [['foul', 'home', 4, '', ''], ['fd', 'away', 6, '', '']]);
+});

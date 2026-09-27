@@ -1321,6 +1321,9 @@
     dreb: ['miss', 'blka'],
   };
 
+  // L'azione di chi subisce: il fallo subito, la stoppata subita (con il tiro sbagliato), la palla recuperata.
+  const PASSIVE = { foul: 'fd', blk: 'blka', fd: 'foul', blka: 'blk', tov: 'stl' };
+
   const headValue = (word) => (/^(tripl|bomb)/.test(word) ? 3 : /^liber/.test(word) ? 1 : undefined);
 
   // Le parole dei nomi dei giocatori: «Rossi» porta al #25 di casa, «Luca» al #12 ospite.
@@ -1452,10 +1455,28 @@
         }
       }
       const before = heads.filter((h) => h.index < i).pop();
-      if (!next || !before) return;
-      if (before.kind === 'foul') heads.push({ kind: 'fd', index: i });
-      if (before.kind === 'blk') heads.push({ kind: 'blka', index: i });
+      if (!next || !before || !PASSIVE[before.kind]) return;
+      heads.push({ kind: PASSIVE[before.kind], index: i });
+      before.paired = true;
     });
+    // «il 24 stoppa il tiro del 15», «il 4 subisce fallo dal 6», «il 24 stoppato dal 15»: senza «su», se all'inizio
+    // della frase c'è un giocatore prima dell'azione e uno dopo, il primo è quello del verbo e l'altro fa la parte
+    // opposta (chi fa il fallo e chi lo subisce, chi stoppa e chi è stoppato)
+    const first = heads.reduce((a, b) => (b.index < a.index ? b : a), heads[0] ?? { index: Infinity });
+    if (first && PASSIVE[first.kind] && !first.paired) {
+      const nextHead = Math.min(tokens.length, ...heads.filter((h) => h.index > first.index).map((h) => h.index));
+      const people = (from, to) => {
+        const found = [];
+        for (let i = from; i < to; i++) if (isNumber(tokens[i]) || isName(tokens[i])) found.push(i);
+        return found;
+      };
+      const before = people(0, first.index);
+      const after = people(first.index + 1, nextHead);
+      if (before.length === 1 && after.length === 1) {
+        first.own = before[0];
+        heads.push({ kind: PASSIVE[first.kind], index: first.index, own: after[0] });
+      }
+    }
     heads.sort((a, b) => a.index - b.index);
     // «segna un canestro», «tiro libero segnato»: due parole per la stessa azione
     heads = heads.filter((h, k) => {
@@ -1493,7 +1514,18 @@
       const last = k === heads.length - 1;
       let player = -1;
       let end;
-      for (let i = h.index + 1; i < next; i++) {
+      if (h.own !== undefined && h.own < h.index) {
+        // il giocatore del verbo, detto prima: il pezzo di frase finisce con l'azione
+        player = h.own;
+        claimed.add(player);
+        const region = [start, h.index];
+        start = h.index + 1;
+        const teams = new Set();
+        for (let i = region[0]; i <= region[1]; i++) if (isTeam(i)) teams.add(tokens[i].slice(1));
+        return { ...h, token: tokens[player], teams };
+      }
+      if (h.own !== undefined) player = h.own;
+      for (let i = h.index + 1; i < next && player < 0; i++) {
         if (isPlayer(i)) {
           player = i;
           break;
@@ -1545,6 +1577,14 @@
     }
     const failed = clauses.find((c) => c.who.error);
     if (failed) return { error: failed.who.error, needsTeam: failed.who.needsTeam };
+    // chi fa il fallo e chi lo subisce, chi stoppa e chi è stoppato, chi perde palla e chi la recupera
+    // sono sempre di squadre diverse
+    for (const c of clauses) {
+      const pair = clauses.find((o) => o !== c && PASSIVE[c.kind] === o.kind);
+      if (pair && pair.who.team === c.who.team && (c.kind === 'foul' || c.kind === 'blk' || c.kind === 'tov')) {
+        return { error: 'Le due parti della stessa azione sono della stessa squadra: controlla numeri e colori.' };
+      }
+    }
 
     // 5. le azioni pronte, con i controlli: rimbalzo in attacco o in difesa, nessuno con 5 falli
     const items = [];
@@ -1597,15 +1637,15 @@
     } else {
       cmd = parseActions(state, text, time.at);
     }
-    if (cmd.needsTeam) {
-      // la squadra non si capisce ma è stato detto un colore: non è quello di nessuna delle due maglie
-      const unknown = text
-        .trim()
-        .split(/\s+/)
-        .find((w) => COMMON_COLORS.some((c) => new RegExp(`^${colorStem(c)}(?:h?[aeio]+)?$`).test(w)));
-      if (unknown) {
-        return { error: `«${unknown}» non è il colore di nessuna squadra: scrivilo in Impostazioni, in «Colore maglia».` };
-      }
+    // è stato detto un colore che non è quello di nessuna delle due maglie (e non è il nome di un giocatore):
+    // meglio dirlo che indovinare la squadra
+    const names = nameIndex(state);
+    const unknown = text
+      .trim()
+      .split(/\s+/)
+      .find((w) => !names.has(w) && COMMON_COLORS.some((c) => new RegExp(`^${colorStem(c)}(?:h?[aeio]+)?$`).test(w)));
+    if (unknown && !cmd.error?.startsWith('Non ho capito cosa')) {
+      return { error: `«${unknown}» non è il colore di nessuna squadra: scrivilo in Impostazioni, in «Colore maglia».` };
     }
     return cmd.error ? { error: cmd.error } : { ...cmd, at: time.at };
   }

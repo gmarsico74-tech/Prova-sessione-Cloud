@@ -62,6 +62,10 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
     subite (la stoppata subita è anche un tiro sbagliato, da 2 se non si dice «da 3»);
   - con il colore della maglia al posto del nome della squadra: «numero 12 bianco, tiro da 3 sbagliato», «fallo del 15
     bianco sul 12 blu», «stoppata del 24 bianco sul tiro del 3 blu»;
+  - con il verbo, quando la frase comincia con un giocatore: «il 24 bianco stoppa il tiro del 15 blu», «il 15 blu
+    stoppato dal 24 bianco», «il 6 blu subisce fallo dal 4 bianco»: il giocatore detto prima è quello del verbo,
+    l'altro fa la parte opposta. Se le due parti risultano della stessa squadra, o se si dice un colore che non è
+    di nessuna squadra, il comando non si registra e il tabellone dice perché;
   - chi è in campo: «quintetto 4 7 9 12 25 PC52 inizio del primo quarto», e i cambi «entra il 12, esce il 7», anche più
     di uno insieme: «entrano 12 e 14, escono 7 e 9»;
   - «annulla», che toglie tutte le azioni dell'ultimo comando.
