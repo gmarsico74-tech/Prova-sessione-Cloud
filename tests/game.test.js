@@ -100,6 +100,22 @@ test('la correzione manuale resta fra zero e la durata del periodo', () => {
   assert.equal(state.clock.remainingMs, 0);
 });
 
+test('il cronometro si sposta con il video, anche mentre corre, fra zero e la durata del periodo', () => {
+  const state = Game.newGame(NAMES);
+  Game.startClock(state.clock, 0);
+  Game.moveClock(state, 10_000, 5000); // dopo 10 secondi il video va avanti di 5
+  assert.equal(Game.remainingMs(state.clock, 10_000), Game.QUARTER_MS - 15_000);
+  assert.equal(Game.shotRemainingMs(state.clock, 10_000), 9000);
+  assert.equal(Game.remainingMs(state.clock, 11_000), Game.QUARTER_MS - 16_000);
+  Game.moveClock(state, 11_000, -60_000); // indietro di un minuto: non oltre l'inizio del periodo
+  assert.equal(Game.remainingMs(state.clock, 11_000), Game.QUARTER_MS);
+  assert.equal(Game.shotRemainingMs(state.clock, 11_000), Game.SHOT_MS);
+  Game.pauseClock(state.clock, 11_000);
+  Game.moveClock(state, 50_000, Game.QUARTER_MS + 1000); // anche da fermo, non sotto zero
+  assert.equal(state.clock.remainingMs, 0);
+  assert.equal(state.clock.shotMs, 0);
+});
+
 test('cambiare periodo riempie i cronometri e conserva la cronaca', () => {
   const state = Game.newGame(NAMES);
   Game.addPoints(state, 0, 'home', 2);

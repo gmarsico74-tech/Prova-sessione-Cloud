@@ -912,7 +912,14 @@ document.addEventListener(
       e.preventDefault();
       e.stopPropagation();
       const step = (e.shiftKey ? 1 : 5) * (e.key === 'ArrowLeft' ? -1 : 1);
-      videoEl.currentTime = Math.max(0, videoEl.currentTime + step);
+      const from = videoEl.currentTime;
+      const to = Math.min(videoEl.duration || Infinity, Math.max(0, from + step));
+      videoEl.currentTime = to;
+      // il cronometro in gioco (anche se fermo solo perché è fermo il video) si sposta con il video
+      if (state.clock.running || clockHeld) {
+        Game.moveClock(state, Date.now(), Math.round((to - from) * 1000));
+        update();
+      }
     }
   },
   true

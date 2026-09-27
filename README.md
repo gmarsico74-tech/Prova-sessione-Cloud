@@ -98,8 +98,10 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
   parli» il video si ferma mentre si tiene premuto il microfono e riparte al rilascio, così la voce non si mescola
   al suo audio. Il cronometro del tabellone segue il video: quando il video si ferma (con la barra spaziatrice, con
   i suoi comandi o mentre si parla) si ferma anche il cronometro, che riparte da solo quando riparte il video; nel
-  frattempo le cifre restano più chiare. Ai fischi il cronometro si ferma a mano, come in partita; a video fermo
-  «Avvia» lo prepara a partire insieme al video. Ogni azione, detta o segnata con i pulsanti, ricorda anche il punto del video: nella cronaca basta
+  frattempo le cifre restano più chiare. Con le frecce il cronometro in gioco si sposta come il video: 5 secondi
+  indietro nel video sono 5 secondi in più sul cronometro (e sui 24), senza passare l'inizio del periodo. Ai fischi
+  il cronometro si ferma a mano, come in partita, e da fermo le frecce non lo toccano; a video fermo «Avvia» lo
+  prepara a partire insieme al video. Ogni azione, detta o segnata con i pulsanti, ricorda anche il punto del video: nella cronaca basta
   toccarla per rivederla (il video torna a 3 secondi prima), e nel file della partita c'è `secondi_video`, che il
   montatore può usare senza leggere il tabellone inquadrato. Chiusa la pagina, il tabellone ricorda il video e il
   punto a cui si era arrivati: riaprendo lo stesso file si riparte da lì. Con Chrome i video .MOV dell'iPhone a volte

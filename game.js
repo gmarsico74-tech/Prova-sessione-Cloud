@@ -183,6 +183,16 @@
     state.clock.remainingMs = Math.min(max, Math.max(0, state.clock.remainingMs + deltaMs));
   }
 
+  // Il cronometro si sposta insieme al video: 5 secondi di video avanti sono 5 secondi di gioco passati.
+  // Vale anche mentre corre; i due cronometri restano fra zero e il loro massimo.
+  function moveClock(state, now, videoMs) {
+    const { clock } = state;
+    const clamp = (ms, max) => Math.min(max, Math.max(0, ms));
+    clock.remainingMs = clamp(remainingMs(clock, now) - videoMs, periodLength(state.period));
+    clock.shotMs = clamp(shotRemainingMs(clock, now) - videoMs, SHOT_MS);
+    clock.startedAt = now;
+  }
+
   // Cambiare periodo (o ripartire da capo in quello attuale) ferma e riempie i cronometri.
   function goToPeriod(state, period) {
     if (period < 1) return;
@@ -1891,6 +1901,7 @@
     resetShot,
     checkExpiry,
     adjustClock,
+    moveClock,
     goToPeriod,
     addPoints,
     canRemovePoints,
