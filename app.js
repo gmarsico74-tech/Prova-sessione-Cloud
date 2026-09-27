@@ -30,6 +30,7 @@ let state = load();
 let videoUrl = null; // il video della partita aperto in questa pagina
 let talkVideo = null; // quando si preme il microfono: { ms } il punto del video, resume se va fatto ripartire
 let videoSavedAt = 0;
+let clockHeld = false; // il cronometro fermo perché è fermo il video: riparte quando riparte il video
 let keyTalk = null; // il tasto del microfono: { since, latched } finché il microfono è aperto da tastiera
 let wakeLock = null; // con i comandi vocali lo schermo resta acceso
 let library = loadLibrary();
@@ -451,8 +452,9 @@ function showNote(box, text) {
 function renderClock() {
   const now = Date.now();
   const ms = Game.remainingMs(state.clock, now);
-  const running = state.clock.running;
+  const running = state.clock.running || clockHeld;
   clockEl.textContent = Game.formatClock(ms);
+  clockEl.classList.toggle('held', clockHeld);
   const inVideo = videoUrl !== null ? ` · ▶ ${Game.formatVideoTime(videoEl.currentTime * 1000)}` : '';
   $('#dock-clock').textContent = `${Game.periodLabel(state.period)} ${Game.formatClock(ms)}${inVideo}`;
   clockEl.classList.toggle('last-minute', ms < 60000);
@@ -467,7 +469,7 @@ function renderClock() {
     toggle.classList.toggle('running', running);
     toggle.disabled = !running && ms === 0;
   }
-  for (const btn of document.querySelectorAll('[data-action="adjust"]')) btn.disabled = running;
+  for (const btn of document.querySelectorAll('[data-action="adjust"]')) btn.disabled = state.clock.running;
 }
 
 function renderLog() {
@@ -532,9 +534,16 @@ function cell(className, text) {
   return span;
 }
 
+// Con il video aperto il cronometro segue il video: a video fermo Avvia lo fa partire insieme al video,
+// e Pausa lo lascia fermo anche quando il video riparte.
 function toggleClock(now) {
-  if (state.clock.running) {
+  if (clockHeld) {
+    clockHeld = false;
+  } else if (state.clock.running) {
     Game.pauseClock(state.clock, now);
+  } else if (videoUrl !== null && videoEl.paused) {
+    unlockAudio();
+    clockHeld = Game.remainingMs(state.clock, now) > 0;
   } else {
     unlockAudio();
     Game.startClock(state.clock, now);
@@ -704,12 +713,15 @@ document.addEventListener('click', (e) => {
       break;
     case 'reset-clock':
       Game.goToPeriod(state, state.period);
+      clockHeld = false;
       break;
     case 'prev-period':
       Game.goToPeriod(state, state.period - 1);
+      clockHeld = false;
       break;
     case 'next-period':
       Game.goToPeriod(state, state.period + 1);
+      clockHeld = false;
       break;
     case 'remove-player': {
       const box = btn.closest('[data-roster]');
@@ -789,6 +801,7 @@ document.addEventListener('click', (e) => {
       const video = videoUrl !== null ? state.video : null; // il video aperto resta aperto
       state = Game.newGame(state.names, state);
       state.video = video;
+      clockHeld = false;
       correcting.home = correcting.away = false;
       break;
     }
@@ -827,6 +840,7 @@ function openVideo(file) {
 }
 
 function closeVideo() {
+  clockHeld = false;
   videoEl.pause();
   videoEl.removeAttribute('src');
   videoEl.load();
@@ -866,7 +880,23 @@ videoEl.addEventListener('timeupdate', () => {
     save();
   }
 });
-videoEl.addEventListener('pause', save);
+// Il cronometro del tabellone si ferma quando si ferma il video (con lo spazio, con i suoi comandi o perché
+// si parla al microfono) e riparte con lui: così resta al passo con il tabellone inquadrato.
+videoEl.addEventListener('pause', () => {
+  if (videoUrl === null || !state.clock.running) {
+    save();
+    return;
+  }
+  Game.pauseClock(state.clock, Date.now());
+  clockHeld = true;
+  update();
+});
+videoEl.addEventListener('play', () => {
+  if (!clockHeld || videoUrl === null) return;
+  clockHeld = false;
+  Game.startClock(state.clock, Date.now());
+  update();
+});
 
 // Con il video aperto: spazio avvia e ferma il video, le frecce destra e sinistra lo spostano di 5 secondi
 // (1 con Maiusc). Si ascolta prima di tutto il resto, così il video e il cronometro non reagiscono due volte.
