@@ -163,10 +163,45 @@
 
     <section class="settings-panel">
       <h2>Impostazioni</h2>
-      <label class="team-field date-field">
-        Giorno della partita
-        <input type="date" id="game-date">
-      </label>
+      <div class="match-info">
+        <div class="match-import">
+          <label class="button-link file-button" title="Squadre, giocatori e dati della partita da un file">
+            Importa partita
+            <input type="file" id="import-file" accept=".json,application/json" hidden>
+          </label>
+          <p class="match-help">
+            Prima di cominciare: da una scheda della partita o da un «File della partita» prende squadre, colori,
+            giocatori e dati della gara, e salva le due squadre fra le «Squadre salvate».
+          </p>
+        </div>
+        <p class="note" id="import-note" aria-live="polite"></p>
+        <div class="match-fields">
+          <label class="team-field">
+            Giorno della partita
+            <input type="date" id="game-date">
+          </label>
+          <label class="team-field">
+            Orario
+            <input type="text" data-match="time" maxlength="40" inputmode="numeric" spellcheck="false" placeholder="18:00">
+          </label>
+          <label class="team-field">
+            Campionato
+            <input type="text" data-match="league" maxlength="40" spellcheck="false" placeholder="per esempio DR1">
+          </label>
+          <label class="team-field">
+            Giornata
+            <input type="text" data-match="round" maxlength="40" spellcheck="false" placeholder="per esempio 1a andata">
+          </label>
+          <label class="team-field">
+            Numero gara
+            <input type="text" data-match="number" maxlength="40" spellcheck="false" inputmode="numeric">
+          </label>
+          <label class="team-field">
+            Campo
+            <input type="text" data-match="venue" maxlength="40" placeholder="per esempio Castelfranco Veneto">
+          </label>
+        </div>
+      </div>
       <label class="check">
         <input type="checkbox" id="shot-clock">
         24 secondi
@@ -256,7 +291,7 @@
             </label>
             <ol class="roster-list" data-role="roster-list"></ol>
             <form class="add-player" novalidate>
-              <input type="number" class="add-number" min="0" max="99" step="1" inputmode="numeric" placeholder="N°" aria-label="Numero di maglia da aggiungere alla squadra di casa">
+              <input type="text" class="add-number" maxlength="2" inputmode="numeric" placeholder="N°" aria-label="Numero di maglia da aggiungere alla squadra di casa">
               <input type="text" class="add-name" maxlength="20" placeholder="Nome" aria-label="Nome del giocatore da aggiungere alla squadra di casa">
               <button type="submit">Aggiungi</button>
             </form>
@@ -276,7 +311,7 @@
             </label>
             <ol class="roster-list" data-role="roster-list"></ol>
             <form class="add-player" novalidate>
-              <input type="number" class="add-number" min="0" max="99" step="1" inputmode="numeric" placeholder="N°" aria-label="Numero di maglia da aggiungere alla squadra ospite">
+              <input type="text" class="add-number" maxlength="2" inputmode="numeric" placeholder="N°" aria-label="Numero di maglia da aggiungere alla squadra ospite">
               <input type="text" class="add-name" maxlength="20" placeholder="Nome" aria-label="Nome del giocatore da aggiungere alla squadra ospite">
               <button type="submit">Aggiungi</button>
             </form>

@@ -54,6 +54,7 @@
       clock: freshClock(1),
       events: [],
       date: null, // il giorno della partita, se non è oggi (per esempio quando la si segna guardando il video)
+      match: emptyMatch(), // campionato, giornata, numero gara, campo e orario: ogni partita ha i suoi
       notes: [], // i comandi a voce non registrati, perché restino nella cronaca
       video: null, // il video della partita aperto nel tabellone: { name, positionMs }
       youtube: null, // il codice del video della diretta su YouTube: ogni partita ha la sua diretta
@@ -285,8 +286,25 @@
     const roster = state.rosters[e.team];
     if (!roster.includes(e.player) && !canRemovePlayer(state.events, e.team, e.player)) {
       roster.push(e.player);
-      roster.sort((a, b) => a - b);
+      roster.sort(byJersey);
     }
+  }
+
+  // Il numero di maglia: da 0 a 99, e «00», che resta diverso da «0» (in squadra ci possono essere tutti e due).
+  // «00» è l'unico che resta testo; gli altri sono numeri. Null se non è un numero di maglia.
+  function jersey(value) {
+    const text = String(value ?? '').trim();
+    if (text === '00') return '00';
+    return /^\d{1,2}$/.test(text) ? Number(text) : null;
+  }
+
+  function isJersey(n) {
+    return n === '00' || (Number.isInteger(n) && n >= 0 && n <= 99);
+  }
+
+  // In ordine di numero, con 00 subito dopo 0.
+  function byJersey(a, b) {
+    return Number(a) - Number(b) || String(a).length - String(b).length;
   }
 
   function maxPlayers(state) {
@@ -295,9 +313,8 @@
 
   // Aggiunge un numero di maglia, con il nome se c'è; se non si può, restituisce il motivo da mostrare.
   function addPlayer(state, team, value, name = '') {
-    const text = String(value).trim();
-    if (!/^\d{1,2}$/.test(text)) return 'Il numero di maglia va da 0 a 99.';
-    const number = Number(text);
+    const number = jersey(value);
+    if (number === null) return 'Il numero di maglia va da 0 a 99, oppure 00.';
     const roster = state.rosters[team];
     if (roster.includes(number)) return `Il numero ${number} c'è già.`;
     if (roster.length >= maxPlayers(state)) {
@@ -306,7 +323,7 @@
         : `Al massimo ${MAX_PLAYERS} giocatori: in amichevole si arriva a ${MAX_PLAYERS_FRIENDLY}.`;
     }
     roster.push(number);
-    roster.sort((a, b) => a - b);
+    roster.sort(byJersey);
     setPlayerName(state, team, number, name);
     return null;
   }
@@ -442,7 +459,7 @@
     const valid =
       name !== '' &&
       players.length <= MAX_PLAYERS_FRIENDLY &&
-      numbers.every((n) => Number.isInteger(n) && n >= 0 && n <= 99) &&
+      numbers.every(isJersey) &&
       new Set(numbers).size === numbers.length;
     if (!valid) return null;
     return color ? { name, players, color } : { name, players };
@@ -459,7 +476,7 @@
     }
     state.names[team] = saved.name;
     if (saved.color) state.colors[team] = saved.color;
-    state.rosters[team] = saved.players.map((p) => p.number).sort((a, b) => a - b);
+    state.rosters[team] = saved.players.map((p) => p.number).sort(byJersey);
     state.playerNames[team] = Object.fromEntries(saved.players.filter((p) => p.name).map((p) => [p.number, p.name]));
     state.origins[team] = saved.name;
     return null;
@@ -670,7 +687,7 @@
       const plus = plusMinus(events, team, end);
       teams[team] = {
         name: state.names[team],
-        players: [...numbers].sort((a, b) => a - b).map((number) => {
+        players: [...numbers].sort(byJersey).map((number) => {
           const line = statLine(events, team, number);
           return {
             number,
@@ -768,7 +785,7 @@
           name: name.slice(0, 14),
           players: players.map(([number, playerName, ...rest]) => {
             const secs = rest.pop();
-            if (!whole(number) || number < 0 || number > 99 || typeof playerName !== 'string') {
+            if (!isJersey(number) || typeof playerName !== 'string') {
               throw new Error('giocatore rovinato');
             }
             if (secs !== null && !(whole(secs) && secs >= 0)) throw new Error('minuti rovinati');
@@ -906,6 +923,7 @@
       rosters: { home: [...state.rosters.home], away: [...state.rosters.away] },
       playerNames: { home: { ...state.playerNames.home }, away: { ...state.playerNames.away } },
       date: gameDate(state, now),
+      ...(hasMatch(state) ? { match: { ...state.match } } : {}),
       period: state.period,
       clockMs: remainingMs(state.clock, now),
       events: state.events.map((e) => ({ ...e })),
@@ -978,10 +996,12 @@
       colore: state.colors[team],
       giocatori: players(team, state.rosters[team]),
     });
+    const match = matchForFile(state);
     return {
       formato: 'tabellone-basket-partita',
       versione: 1,
       data_partita: gameDate(state, now),
+      ...(match ? { partita: match } : {}),
       aggancio:
         'Ogni voce è agganciata al tempo del tabellone: il periodo e il tempo che manca alla sua fine ' +
         '(tempo, ms_restanti). Nel video si ritrova leggendo il tabellone inquadrato; ogni periodo finisce a 0:00. ' +
@@ -1009,6 +1029,153 @@
 
   function gameFileName(state, now) {
     return `partita_${slug(state.names.home)}_${slug(state.names.away)}_${gameDate(state, now)}.json`;
+  }
+
+  // ——— I dati della partita e l'importazione da un file ———
+
+  // Campionato, giornata, numero gara, campo e orario, con il nome che hanno nei file.
+  const MATCH_FIELDS = { league: 'campionato', round: 'giornata', number: 'gara', venue: 'campo', time: 'ora' };
+  const SHEET_FORMAT = 'tabellone-basket-scheda';
+
+  function emptyMatch() {
+    return Object.fromEntries(Object.keys(MATCH_FIELDS).map((key) => [key, '']));
+  }
+
+  function hasMatch(state) {
+    return Object.values(state.match ?? {}).some((v) => v !== '');
+  }
+
+  function setMatchField(state, key, text) {
+    if (!(key in MATCH_FIELDS)) return;
+    state.match = { ...emptyMatch(), ...state.match, [key]: String(text).trim().slice(0, 40) };
+  }
+
+  // Nel file della partita solo i dati scritti, con i nomi della scheda: così il file si reimporta com'è.
+  function matchForFile(state) {
+    if (!hasMatch(state)) return null;
+    return Object.fromEntries(
+      Object.entries(MATCH_FIELDS)
+        .filter(([key]) => state.match[key])
+        .map(([key, field]) => [field, state.match[key]])
+    );
+  }
+
+  // Il giorno scritto «2026-10-04» o all'italiana «4/10/2026»; null se non è un giorno vero.
+  function readDay(text) {
+    const s = String(text).trim();
+    const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+    const it = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(s);
+    if (!iso && !it) return null;
+    const [y, m, d] = (iso ? [iso[1], iso[2], iso[3]] : [it[3], it[2], it[1]]).map(Number);
+    const date = new Date(y, m - 1, d);
+    if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
+    return dayOf(date);
+  }
+
+  // L'orario «18:00», anche scritto «18.00» o «18»; quello che non è un orario resta com'è scritto.
+  function readTime(text) {
+    const s = String(text).trim();
+    const m = /^(\d{1,2})(?:[:.](\d{2}))?$/.exec(s);
+    if (!m || Number(m[1]) > 23 || Number(m[2] ?? 0) > 59) return s;
+    return `${m[1].padStart(2, '0')}:${m[2] ?? '00'}`;
+  }
+
+  // Una squadra della scheda: nome, colore e giocatori con numero e nome, come una squadra salvata.
+  function readSheetTeam(entry, which) {
+    if (!entry || typeof entry !== 'object') return { error: `Nel file manca la squadra ${which}.` };
+    const name = String(entry.nome ?? '').trim().slice(0, 14).trim();
+    if (!name) return { error: `Nel file manca il nome della squadra ${which}.` };
+    const list = entry.giocatori ?? [];
+    if (!Array.isArray(list)) return { error: `${name}: i giocatori vanno scritti come elenco.` };
+    const players = [];
+    for (const p of list) {
+      const number = jersey(p?.numero);
+      if (number === null) return { error: `${name}: «${p?.numero ?? ''}» non è un numero di maglia (da 0 a 99, oppure 00).` };
+      if (players.some((q) => q.number === number)) return { error: `${name}: il numero ${number} c'è due volte.` };
+      players.push({ number, name: String(p.nome ?? '').trim().slice(0, 20).trim() });
+    }
+    if (players.length > MAX_PLAYERS_FRIENDLY) {
+      return { error: `${name} ha ${players.length} giocatori: al massimo ${MAX_PLAYERS_FRIENDLY}, in amichevole.` };
+    }
+    players.sort((a, b) => byJersey(a.number, b.number));
+    const color = String(entry.colore ?? '').trim().slice(0, 20);
+    return { team: color ? { name, players, color } : { name, players } };
+  }
+
+  // Quello che c'è da importare in un file: una scheda della partita (tabellone-basket-scheda) o un file
+  // della partita già scaricato, di cui contano squadre, giocatori e dati della partita, non le azioni.
+  // Restituisce { sheet } con giorno, dati e squadre, oppure { error } con il motivo da mostrare.
+  function readMatchSheet(json) {
+    let info;
+    let day;
+    let sides;
+    if (json?.formato === SHEET_FORMAT) {
+      info = json.partita ?? {};
+      day = info.giorno;
+      sides = [json.casa, json.ospiti];
+    } else if (json?.formato === 'tabellone-basket-partita') {
+      info = json.partita ?? {};
+      day = json.data_partita;
+      sides = [json.squadre?.casa, json.squadre?.ospiti];
+    } else {
+      return { error: 'Questo file non è una scheda della partita né un «File della partita» del tabellone.' };
+    }
+    if (json.versione !== undefined && json.versione !== 1) {
+      return { error: 'Il file è di una versione più nuova del tabellone: aggiorna la pagina e riprova.' };
+    }
+    if (typeof info !== 'object') return { error: '«partita» va scritta come un elenco di campi.' };
+    const hasDay = day !== undefined && day !== null && String(day).trim() !== '';
+    const date = hasDay ? readDay(day) : null;
+    if (hasDay && !date) return { error: `«${day}» non è un giorno: scrivilo come 2026-10-04.` };
+    const match = emptyMatch();
+    for (const [key, field] of Object.entries(MATCH_FIELDS)) {
+      const value = info[field];
+      if (value !== undefined && value !== null) match[key] = String(value).trim().slice(0, 40);
+    }
+    if (match.time) match.time = readTime(match.time);
+    const home = readSheetTeam(sides[0], 'di casa');
+    if (home.error) return home;
+    const away = readSheetTeam(sides[1], 'ospite');
+    if (away.error) return away;
+    if (sameName(home.team.name, away.team.name)) return { error: 'Le due squadre hanno lo stesso nome.' };
+    return { sheet: { date, match, teams: { home: home.team, away: away.team } } };
+  }
+
+  // Precompila la partita con la scheda, prima di cominciare a segnare: dati, squadre e giocatori, e salva
+  // le due squadre fra quelle salvate (una con lo stesso nome viene aggiornata). Con più di 12 giocatori
+  // spunta «Amichevole». Restituisce { library, friendly } oppure { error }.
+  function importMatch(state, library, sheet) {
+    if (state.events.length > 0) {
+      return { error: 'In questa partita ci sono già azioni: per importarne un\'altra premi prima «Nuova partita».' };
+    }
+    const most = Math.max(sheet.teams.home.players.length, sheet.teams.away.players.length);
+    const friendly = most > MAX_PLAYERS && !state.settings.friendly;
+    if (friendly) state.settings.friendly = true;
+    for (const team of ['home', 'away']) {
+      const error = loadTeam(state, team, sheet.teams[team]);
+      if (error) return { error };
+      state.colors[team] = sheet.teams[team].color ?? '';
+    }
+    if (sheet.date) state.date = sheet.date;
+    state.match = { ...sheet.match };
+    state.settings.playerMode = true;
+    return { library: mergeLibrary(library, [sheet.teams.home, sheet.teams.away]), friendly };
+  }
+
+  // I campionati delle partite dell'archivio, in ordine alfabetico.
+  function archiveLeagues(archive) {
+    const seen = new Map();
+    for (const { dati } of archive) {
+      const league = dati.match?.league;
+      if (league && !seen.has(league.toLocaleLowerCase('it'))) seen.set(league.toLocaleLowerCase('it'), league);
+    }
+    return [...seen.values()].sort((a, b) => a.localeCompare(b, 'it'));
+  }
+
+  // Le partite di un campionato; con il campionato vuoto, tutte.
+  function leagueGames(archive, league) {
+    if (!league) return archive;
+    return archive.filter((g) => g.dati.match?.league && sameName(g.dati.match.league, league));
   }
 
   // ——— La diretta: la partita seguita da un altro dispositivo, con Firebase (live.js) ———
@@ -1133,6 +1300,7 @@
   function gameFromData(dati) {
     const state = newGame(dati.names, { rosters: dati.rosters, playerNames: dati.playerNames, colors: dati.colors });
     state.date = dati.date;
+    if (dati.match) state.match = { ...emptyMatch(), ...dati.match };
     state.period = dati.period;
     state.clock = { ...freshClock(dati.period), remainingMs: dati.clockMs };
     state.events = dati.events;
@@ -1151,7 +1319,8 @@
   // Controlla che i dati letti da un file siano davvero una partita del tabellone.
   function validData(d) {
     const whole = (n) => Number.isInteger(n);
-    const numbers = (list) => Array.isArray(list) && list.every((n) => whole(n) && n >= 0 && n <= 99);
+    const numbers = (list) => Array.isArray(list) && list.every(isJersey);
+    const texts = (m) => m && typeof m === 'object' && Object.values(m).every((v) => typeof v === 'string');
     return (
       d &&
       typeof d.names?.home === 'string' &&
@@ -1161,6 +1330,7 @@
       numbers(d.rosters?.away) &&
       typeof d.playerNames?.home === 'object' &&
       typeof d.playerNames?.away === 'object' &&
+      (d.match === undefined || texts(d.match)) &&
       /^\d{4}-\d{2}-\d{2}$/.test(d.date) &&
       whole(d.period) &&
       d.period >= 1 &&
@@ -1258,7 +1428,7 @@
         players.set(p.number, acc);
       }
     }
-    return { team: teamName, record, players: [...players.values()].sort((a, b) => a.number - b.number) };
+    return { team: teamName, record, players: [...players.values()].sort((a, b) => byJersey(a.number, b.number)) };
   }
 
   // ——— Comandi a voce ———
@@ -1296,10 +1466,16 @@
       .replace(/[^a-z0-9]+/g, ' ')
       .replace(/([a-z])(\d)/g, '$1 $2')
       .replace(/(\d)([a-z])/g, '$1 $2')
+      .replace(/\b(?:doppio zero|zero zero)\b/g, '00')
       .trim()
       .split(' ')
-      .map((w) => (NUMBER_WORDS.has(w) ? String(NUMBER_WORDS.get(w)) : /^\d+$/.test(w) ? String(Number(w)) : w))
+      .map((w) => (NUMBER_WORDS.has(w) ? String(NUMBER_WORDS.get(w)) : /^\d+$/.test(w) ? String(heardNumber(w)) : w))
       .join(' ');
+  }
+
+  // Un numero sentito: «00» resta 00, gli altri diventano numeri (anche oltre il 99, per dire che non vanno).
+  function heardNumber(w) {
+    return w === '00' ? '00' : Number(w);
   }
 
   // Le frasi si confrontano con uno spazio prima e dopo ogni parola: « canestro da 2 del 25 ».
@@ -1391,7 +1567,7 @@
       .trim()
       .split(/\s+/)
       .filter((w) => /^\d+$/.test(w))
-      .map(Number);
+      .map(heardNumber);
   }
 
   // La squadra di un gruppo di numeri (quintetto o cambio): quella detta, o l'unica che li ha tutti.
@@ -1427,7 +1603,7 @@
     if (where.error) return where;
     const check = checkGroup(state, where.team, numbers, numbers);
     if (check.error) return check;
-    return { type: 'lineup', team: where.team, on: numbers.sort((a, b) => a - b), added: check.added };
+    return { type: 'lineup', team: where.team, on: numbers.sort(byJersey), added: check.added };
   }
 
   // «entra il 12, esce il 7», anche con più giocatori: «entrano 12 e 14, escono 7 e 9».
@@ -1440,7 +1616,7 @@
       else if (OUT_WORD.test(w)) list = outs;
       else if (/^\d+$/.test(w)) {
         if (!list) return { error: "Non ho capito chi entra e chi esce: «entra il 12, esce il 7»." };
-        list.push(Number(w));
+        list.push(heardNumber(w));
       }
     }
     if (!ins.length || !outs.length) return { error: "Di' chi entra e chi esce: «entra il 12, esce il 7»." };
@@ -1730,7 +1906,7 @@
     const resolve = (c, side) => {
       if (c.token === null) return side ? { team: side } : { error: `Non ho capito ${WHAT[c.kind]}: di' il numero o il nome.`, needsTeam: true };
       if (isName(c.token)) return playerByName(state, side, c.token, names);
-      return playerByNumber(state, side, Number(c.token.replace(/^v/, '')));
+      return playerByNumber(state, side, heardNumber(c.token.replace(/^v/, '')));
     };
     for (const c of clauses) {
       if (c.teams.size > 1) return { error: 'Ho sentito tutte e due le squadre per la stessa azione.' };
@@ -2057,6 +2233,7 @@
     takeTimeout,
     undo,
     maxPlayers,
+    jersey,
     addPlayer,
     setPlayerName,
     setColor,
@@ -2091,6 +2268,12 @@
     statName,
     gameFile,
     gameFileName,
+    emptyMatch,
+    setMatchField,
+    readMatchSheet,
+    importMatch,
+    archiveLeagues,
+    leagueGames,
     liveData,
     liveChanges,
     liveFeed,

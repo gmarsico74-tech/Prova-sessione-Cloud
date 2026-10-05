@@ -99,6 +99,12 @@ function match(dati) {
   return `${dati.names.home} ${Game.score(state.events, 'home')} – ${Game.score(state.events, 'away')} ${dati.names.away}`;
 }
 
+// Campionato, giornata, numero gara e campo, quelli scritti: «DR1 · 1a andata · gara 693 · Castelfranco Veneto».
+function matchInfo(dati) {
+  const m = dati.match ?? {};
+  return [m.league, m.round, m.number && `gara ${m.number}`, m.venue].filter(Boolean).join(' · ');
+}
+
 // ——— L'archivio ———
 
 function renderGames() {
@@ -114,7 +120,8 @@ function renderGames() {
     li.dataset.id = g.id;
     li.classList.toggle('selected', g.id === selected);
     const who = el('span', 'game-who');
-    who.append(el('span', 'game-date', shortDate(g.dati.date)), el('span', 'game-match', match(g.dati)));
+    const info = matchInfo(g.dati);
+    who.append(el('span', 'game-date', info ? `${shortDate(g.dati.date)} · ${info}` : shortDate(g.dati.date)), el('span', 'game-match', match(g.dati)));
     const actions = el('div', 'game-actions');
     actions.append(button('show-game', 'Tabellino'), button('remove-game', 'Togli'));
     li.append(who, actions);
@@ -173,7 +180,8 @@ function renderGame() {
   const state = Game.gameFromData(game.dati);
   const box = Game.boxScore(state, 0);
   const periods = box.periods.map((p) => `${Game.periodLabel(p.period)} ${p.home}–${p.away}`).join(' · ');
-  $('#game-title').textContent = `${match(game.dati)} · ${longDate(game.dati.date)}${periods ? ` · ${periods}` : ''}`;
+  const info = matchInfo(game.dati);
+  $('#game-title').textContent = `${match(game.dati)} · ${longDate(game.dati.date)}${info ? ` · ${info}` : ''}${periods ? ` · ${periods}` : ''}`;
   $('#game-box').replaceChildren(scoutTable(box.teams.home, 'home'), scoutTable(box.teams.away, 'away'));
 }
 
@@ -233,8 +241,29 @@ function seasonCells(games, line, eff, secs, secsGames, pm, pmGames, averages) {
   ];
 }
 
+// Il campionato scelto: «Tutti» o uno di quelli scritti nelle partite dell'archivio.
+function renderLeagues() {
+  const select = $('#league');
+  const leagues = Game.archiveLeagues(archive);
+  const current = leagues.includes(select.value) ? select.value : '';
+  const all = el('option', '', 'Tutti');
+  all.value = '';
+  select.replaceChildren(
+    all,
+    ...leagues.map((name) => {
+      const option = el('option', '', name);
+      option.value = name;
+      return option;
+    })
+  );
+  select.value = current;
+  return Game.leagueGames(archive, current);
+}
+
 function renderSeason() {
-  const teams = Game.archiveTeams(archive);
+  const inLeague = renderLeagues();
+  const league = $('#league').value;
+  const teams = Game.archiveTeams(inLeague);
   const select = $('#team');
   const current = teams.includes(select.value) ? select.value : teams[0];
   select.replaceChildren(
@@ -253,12 +282,12 @@ function renderSeason() {
   select.value = current;
   const from = $('#from').value;
   const to = $('#to').value;
-  const games = archive.filter((g) => (!from || g.dati.date >= from) && (!to || g.dati.date <= to));
+  const games = inLeague.filter((g) => (!from || g.dati.date >= from) && (!to || g.dati.date <= to));
   const season = Game.seasonStats(games, current);
   const r = season.record;
   const averages = $('#averages').checked;
   if (r.games === 0) {
-    $('#record').textContent = `Nessuna partita di ${current} nel periodo scelto.`;
+    $('#record').textContent = `Nessuna partita di ${current}${league ? ` in ${league}` : ''} nel periodo scelto.`;
     $('#season').replaceChildren();
     seasonTable = null;
     return;
@@ -275,7 +304,7 @@ function renderSeason() {
     ...seasonCells(p.games, p.line, p.eff, p.secs, p.secsGames, p.pm, p.pmGames, averages),
   ]);
   const teamRow = ['', 'Squadra', ...seasonCells(r.games, r.totals, Game.efficiency(r.totals), 0, 0, 0, 0, averages)];
-  seasonTable = { team: current, from, to, averages, headers: columns.map(([label]) => label), rows: [...rows, teamRow] };
+  seasonTable = { team: current, league, from, to, averages, headers: columns.map(([label]) => label), rows: [...rows, teamRow] };
   $('#season').replaceChildren(
     table(
       columns,
@@ -310,7 +339,8 @@ function exportCsv() {
   const lines = [seasonTable.headers, ...seasonTable.rows].map((row) => row.map(quote).join(';'));
   const period = `${seasonTable.from || 'inizio'}_${seasonTable.to || today()}`;
   const kind = seasonTable.averages ? 'medie' : 'totali';
-  const name = `statistiche_${seasonTable.team.replace(/[^\w]+/g, '-')}_${kind}_${period}.csv`;
+  const league = seasonTable.league ? `_${seasonTable.league.replace(/[^\w]+/g, '-')}` : '';
+  const name = `statistiche_${seasonTable.team.replace(/[^\w]+/g, '-')}${league}_${kind}_${period}.csv`;
   download(name, `﻿${lines.join('\r\n')}`, 'text/csv;charset=utf-8');
 }
 
@@ -377,7 +407,7 @@ $('#add-files').addEventListener('change', (e) => {
   e.target.value = '';
 });
 
-for (const id of ['#team', '#from', '#to', '#averages']) $(id).addEventListener('change', renderSeason);
+for (const id of ['#league', '#team', '#from', '#to', '#averages']) $(id).addEventListener('change', renderSeason);
 
 // Se il tabellone salva una partita in un'altra scheda, l'elenco si aggiorna da solo.
 window.addEventListener('storage', (e) => {

@@ -59,6 +59,7 @@ function load() {
       saved.rosters ??= { home: [], away: [] };
       saved.playerNames ??= { home: {}, away: {} }; // e prima dei nomi
       saved.origins ??= { home: null, away: null }; // e prima di «Modifica»
+      saved.match ??= Game.emptyMatch(); // e prima dei dati della partita
       return saved;
     }
   } catch {
@@ -230,6 +231,9 @@ function renderSettings() {
   for (const radio of document.querySelectorAll('[name="time-source"]')) radio.checked = radio.value === settings.timeSource;
   const dateField = $('#game-date');
   if (document.activeElement !== dateField) dateField.value = Game.gameDate(state, Date.now());
+  for (const field of document.querySelectorAll('[data-match]')) {
+    if (document.activeElement !== field) field.value = state.match[field.dataset.match] ?? '';
+  }
   $('#voice-support').textContent = Voice.supported
     ? ''
     : 'Questo browser non capisce la voce: su Android usa Chrome, su iPhone e iPad Safari.';
@@ -257,7 +261,7 @@ function renderRosterList(list, team) {
     list.replaceChildren(...numbers.map((number) => rosterRow(team, number)));
   }
   for (const row of list.children) {
-    const number = Number(row.dataset.number);
+    const number = Game.jersey(row.dataset.number);
     const input = $('input', row);
     if (document.activeElement !== input) input.value = state.playerNames[team][number] ?? '';
     const remove = $('button', row);
@@ -578,6 +582,51 @@ function importFromLink() {
   saveLibrary();
 }
 
+// «Importa partita»: legge una scheda della partita o un File della partita e, dopo averlo chiesto,
+// precompila squadre, giocatori e dati della gara e salva le due squadre fra quelle salvate.
+async function importMatchFile(file) {
+  const note = $('#import-note');
+  note.classList.remove('error');
+  const fail = (text) => {
+    note.textContent = text;
+    note.classList.add('error');
+  };
+  let json;
+  try {
+    json = JSON.parse(await file.text());
+  } catch {
+    fail(`«${file.name}» non è un file che il tabellone sa leggere: serve un file .json.`);
+    return;
+  }
+  const read = Game.readMatchSheet(json);
+  if (read.error) {
+    fail(read.error);
+    return;
+  }
+  const { sheet } = read;
+  const { home, away } = sheet.teams;
+  const when = sheet.date ? ` del ${sheet.date.split('-').reverse().join('/')}` : '';
+  const known = [home, away].filter((t) => Game.hasStoredTeam(library, t.name)).map((t) => t.name);
+  const saved = known.length
+    ? `Fra le squadre salvate ${known.join(' e ')} ${known.length === 1 ? 'viene aggiornata' : 'vengono aggiornate'} con i giocatori del file.`
+    : 'Le due squadre si aggiungono alle squadre salvate.';
+  const ask = `Importo ${home.name} – ${away.name}${when}?
+Squadre, giocatori e dati della partita di adesso vengono sostituiti. ${saved}`;
+  if (!confirm(ask)) return;
+  const result = Game.importMatch(state, library, sheet);
+  if (result.error) {
+    fail(result.error);
+    return;
+  }
+  library = result.library;
+  saveLibrary();
+  correcting.home = correcting.away = false;
+  update();
+  const count = (t) => `${t.name} (${t.players.length} ${t.players.length === 1 ? 'giocatore' : 'giocatori'})`;
+  const friendly = result.friendly ? ' Più di 12 giocatori: ho spuntato «Amichevole».' : '';
+  note.textContent = `Importata: ${count(home)} – ${count(away)}.${friendly}`;
+}
+
 function showNote(box, text) {
   $('[data-role="note"]', box).textContent = text;
 }
@@ -809,7 +858,7 @@ document.addEventListener('click', (e) => {
   const action = btn.dataset.action;
   const team = btn.closest('[data-team]')?.dataset.team;
   const row = btn.closest('[data-player]');
-  const player = row ? Number(row.dataset.player) : undefined;
+  const player = row ? Game.jersey(row.dataset.player) : undefined;
   const fix = team !== undefined && correcting[team];
   const now = Date.now();
   const before = state.events.length;
@@ -858,7 +907,7 @@ document.addEventListener('click', (e) => {
       break;
     case 'remove-player': {
       const box = btn.closest('[data-roster]');
-      Game.removePlayer(state, box.dataset.roster, Number(btn.dataset.number));
+      Game.removePlayer(state, box.dataset.roster, Game.jersey(btn.dataset.number));
       $('[data-role="error"]', box).textContent = '';
       showNote(box, '');
       break;
@@ -1243,6 +1292,19 @@ for (const radio of document.querySelectorAll('[name="time-source"]')) {
 $('#game-date').addEventListener('change', (e) => {
   state.date = /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) ? e.target.value : null;
   update();
+});
+
+for (const field of document.querySelectorAll('[data-match]')) {
+  field.addEventListener('input', () => {
+    Game.setMatchField(state, field.dataset.match, field.value);
+    save();
+  });
+}
+
+$('#import-file').addEventListener('change', (e) => {
+  const [file] = e.target.files;
+  e.target.value = ''; // così si può importare di nuovo lo stesso file
+  if (file) importMatchFile(file);
 });
 
 $('#friendly').addEventListener('change', (e) => {
