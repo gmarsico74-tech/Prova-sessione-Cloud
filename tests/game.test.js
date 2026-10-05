@@ -1393,3 +1393,128 @@ test('lo stato che legge chi guarda: periodo e tempo, fine periodo, finale', () 
   assert.equal(Game.statusText(4, 0, false), 'Finale');
   assert.equal(Game.statusText(5, 0, false), 'Finale');
 });
+
+// ——— Importare la partita da un file ———
+
+const SHEET = {
+  formato: 'tabellone-basket-scheda',
+  versione: 1,
+  partita: { giorno: '2026-10-04', ora: '18.00', campionato: 'DR1', giornata: '1a andata', gara: 693, campo: 'Castelfranco Veneto' },
+  casa: { nome: 'PC52', colore: 'blu', giocatori: [{ numero: 6, nome: 'Viero Alessandro' }, { numero: '00', nome: 'Doppiozero' }, { numero: 0, nome: 'Cappelletto Marco' }] },
+  ospiti: { nome: 'Mogliano', colore: 'bianca', giocatori: [{ numero: 34, nome: 'Prencipe Leonardo' }] },
+};
+
+test('la scheda della partita si legge: giorno, dati della gara, squadre e giocatori, con 00 diverso da 0', () => {
+  const { sheet } = Game.readMatchSheet(SHEET);
+  assert.equal(sheet.date, '2026-10-04');
+  assert.deepEqual(sheet.match, { league: 'DR1', round: '1a andata', number: '693', venue: 'Castelfranco Veneto', time: '18:00' });
+  assert.deepEqual(sheet.teams.home, {
+    name: 'PC52',
+    color: 'blu',
+    players: [{ number: 0, name: 'Cappelletto Marco' }, { number: '00', name: 'Doppiozero' }, { number: 6, name: 'Viero Alessandro' }],
+  });
+  assert.deepEqual(sheet.teams.away.players, [{ number: 34, name: 'Prencipe Leonardo' }]);
+  const italian = Game.readMatchSheet({ ...SHEET, partita: { giorno: '4/10/2026' } }).sheet;
+  assert.equal(italian.date, '2026-10-04', 'il giorno anche all\'italiana');
+  assert.equal(italian.match.league, '');
+  assert.equal(Game.readMatchSheet({ ...SHEET, partita: undefined }).sheet.date, null, 'senza giorno resta quello di prima');
+});
+
+test('una scheda sbagliata dice perché', () => {
+  const bad = (change) => Game.readMatchSheet({ ...SHEET, ...change }).error;
+  assert.match(Game.readMatchSheet({ formato: 'altro' }).error, /non è una scheda/);
+  assert.match(bad({ partita: { giorno: '31/02/2026' } }), /non è un giorno/);
+  assert.match(bad({ ospiti: undefined }), /manca la squadra ospite/);
+  assert.match(bad({ casa: { nome: 'PC52', giocatori: [{ numero: 100 }] } }), /non è un numero di maglia/);
+  assert.match(bad({ casa: { nome: 'PC52', giocatori: [{ numero: 7 }, { numero: '7' }] } }), /il numero 7 c'è due volte/);
+  assert.match(bad({ ospiti: { nome: 'pc52' } }), /stesso nome/);
+  const seventeen = Array.from({ length: 17 }, (_, i) => ({ numero: i }));
+  assert.match(bad({ casa: { nome: 'PC52', giocatori: seventeen } }), /17 giocatori/);
+});
+
+test('importare la partita precompila squadre, giocatori e dati e salva le squadre', () => {
+  const state = Game.newGame(NAMES);
+  const old = { name: 'PC52', players: [{ number: 99, name: 'Vecchio' }] };
+  const result = Game.importMatch(state, [old, { name: 'Altri', players: [] }], Game.readMatchSheet(SHEET).sheet);
+  assert.equal(result.error, undefined);
+  assert.deepEqual(state.names, { home: 'PC52', away: 'Mogliano' });
+  assert.deepEqual(state.colors, { home: 'blu', away: 'bianca' });
+  assert.deepEqual(state.rosters.home, [0, '00', 6]);
+  assert.equal(state.playerNames.home['00'], 'Doppiozero');
+  assert.equal(state.playerNames.home[0], 'Cappelletto Marco');
+  assert.equal(state.date, '2026-10-04');
+  assert.equal(state.match.league, 'DR1');
+  assert.equal(state.settings.playerMode, true);
+  assert.deepEqual(result.library.map((t) => t.name), ['Altri', 'Mogliano', 'PC52']);
+  assert.equal(result.library.find((t) => t.name === 'PC52').players.length, 3, 'la squadra con lo stesso nome è aggiornata');
+  assert.deepEqual(state.origins, { home: 'PC52', away: 'Mogliano' });
+});
+
+test('con più di 12 giocatori l\'importazione spunta «Amichevole»; a partita cominciata non importa', () => {
+  const state = Game.newGame(NAMES);
+  const fourteen = Array.from({ length: 14 }, (_, i) => ({ numero: i + 1 }));
+  const sheet = Game.readMatchSheet({ ...SHEET, casa: { nome: 'PC52', giocatori: fourteen } }).sheet;
+  assert.equal(Game.importMatch(state, [], sheet).friendly, true);
+  assert.equal(state.settings.friendly, true);
+  assert.equal(state.rosters.home.length, 14);
+  Game.addPoints(state, 0, 'home', 2, 1);
+  assert.match(Game.importMatch(state, [], sheet).error, /Nuova partita/);
+});
+
+test('i dati della partita vanno nel file e nell\'archivio, e il file si reimporta senza le azioni', () => {
+  const state = Game.newGame(NAMES);
+  Game.importMatch(state, [], Game.readMatchSheet(SHEET).sheet);
+  Game.addPoints(state, 0, 'home', 3, '00');
+  const file = JSON.parse(JSON.stringify(Game.gameFile(state, 0)));
+  assert.equal(file.formato, 'tabellone-basket-partita');
+  assert.equal(file.versione, 1);
+  assert.deepEqual(file.partita, { campionato: 'DR1', giornata: '1a andata', gara: '693', campo: 'Castelfranco Veneto', ora: '18:00' });
+  assert.deepEqual(file.squadre.casa.giocatori.map((g) => g.numero), [0, '00', 6]);
+  assert.equal(file.azioni[0].numero, '00');
+  assert.equal(file.azioni[0].scritta, 'Tripla · #00 Doppiozero');
+  const [entry] = Game.readGameFile(file);
+  assert.equal(entry.dati.match.league, 'DR1');
+  const again = Game.gameFromData(entry.dati);
+  assert.equal(again.match.venue, 'Castelfranco Veneto');
+  assert.equal(Game.boxScore(again, 0).teams.home.players.find((p) => p.number === '00').pts, 3);
+  assert.equal(Game.boxScore(again, 0).teams.home.players.find((p) => p.number === 0).pts, 0);
+  const reread = Game.readMatchSheet(file).sheet;
+  assert.deepEqual(reread, Game.readMatchSheet(SHEET).sheet);
+  const fresh = Game.newGame(NAMES);
+  assert.equal(Game.importMatch(fresh, [], reread).error, undefined);
+  assert.equal(fresh.events.length, 0, 'le azioni del file non vengono importate');
+});
+
+test('senza dati della partita il file resta com\'era', () => {
+  const file = Game.gameFile(Game.newGame(NAMES), 0);
+  assert.equal('partita' in file, false);
+  assert.equal('match' in file.dati, false);
+});
+
+test('le statistiche si filtrano per campionato', () => {
+  const withLeague = (league) => {
+    const state = Game.newGame(NAMES);
+    state.date = '2026-10-04';
+    if (league) Game.setMatchField(state, 'league', league);
+    state.names.away = league || 'Amici';
+    return Game.archiveEntry(state, 0);
+  };
+  const archive = [withLeague('DR1'), withLeague('Coppa'), withLeague('')].reduce(Game.storeGame, []);
+  assert.deepEqual(Game.archiveLeagues(archive), ['Coppa', 'DR1']);
+  assert.deepEqual(Game.leagueGames(archive, 'dr1').map((g) => g.dati.names.away), ['DR1']);
+  assert.equal(Game.leagueGames(archive, '').length, 3);
+});
+
+test('il numero 00 si scrive, si dice e resta diverso dallo 0', () => {
+  const state = voiceGame();
+  assert.equal(Game.addPlayer(state, 'home', '0'), null);
+  assert.equal(Game.addPlayer(state, 'home', '00', 'Doppio'), null);
+  assert.match(Game.addPlayer(state, 'home', '00'), /c'è già/);
+  assert.match(Game.addPlayer(state, 'home', '000'), /oppure 00/);
+  assert.equal(Game.voiceCommand(state, 0, ['canestro da 3 del doppio zero PC52 al 5 e 00']).ok, true);
+  assert.equal(Game.voiceCommand(state, 0, ['tiro libero dello 0 PC52 al 4 e 30']).ok, true);
+  assert.equal(Game.playerPoints(state.events, 'home', '00'), 3);
+  assert.equal(Game.playerPoints(state.events, 'home', 0), 1);
+  const link = Game.decodeLibrary(Game.encodeLibrary([Game.teamSnapshot(state, 'home')]));
+  assert.deepEqual(link[0].players.map((p) => p.number), state.rosters.home);
+});
