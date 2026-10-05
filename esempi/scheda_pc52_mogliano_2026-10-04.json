@@ -1,0 +1,47 @@
+{
+ "formato": "tabellone-basket-scheda",
+ "versione": 1,
+ "partita": {
+  "giorno": "2026-10-04",
+  "campionato": "DR1",
+  "giornata": "1a giornata andata",
+  "gara": "693",
+  "campo": "Castelfranco Veneto"
+ },
+ "casa": {
+  "nome": "PC52",
+  "colore": "blu",
+  "giocatori": [
+   {"numero": 0, "nome": "Cappelletto Marco"},
+   {"numero": 5, "nome": "Brustolon Marco"},
+   {"numero": 6, "nome": "Viero Alessandro"},
+   {"numero": 8, "nome": "Sabetta Giulio"},
+   {"numero": 9, "nome": "Cuzzit Gianluca"},
+   {"numero": 13, "nome": "Marino Andrea"},
+   {"numero": 20, "nome": "Toniato Luca"},
+   {"numero": 21, "nome": "Marcon Michele"},
+   {"numero": 22, "nome": "Scapinello Pietro"},
+   {"numero": 25, "nome": "Sartor Mario"},
+   {"numero": 31, "nome": "Garatti Gabriele"},
+   {"numero": 33, "nome": "Ferrara Edoardo"}
+  ]
+ },
+ "ospiti": {
+  "nome": "Mogliano",
+  "colore": "bianca",
+  "giocatori": [
+   {"numero": 0, "nome": "Manente"},
+   {"numero": 5, "nome": "R. Gambato"},
+   {"numero": 9, "nome": "Bertotto"},
+   {"numero": 10, "nome": "Scaramuzza"},
+   {"numero": 11, "nome": "Negrin"},
+   {"numero": 14, "nome": "Pavan"},
+   {"numero": 18, "nome": "De Cicco"},
+   {"numero": 21, "nome": "Rinaldi"},
+   {"numero": 23, "nome": "Pellegrinon"},
+   {"numero": 33, "nome": "Pranzo"},
+   {"numero": 34, "nome": "Prencipe"},
+   {"numero": 77, "nome": "A. Gambato"}
+  ]
+ }
+}

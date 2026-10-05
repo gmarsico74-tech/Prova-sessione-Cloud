@@ -845,9 +845,36 @@ input:focus-visible {
   color: var(--muted);
 }
 
-.date-field {
-  max-width: 16em;
-  margin: 0 0 8px;
+.match-info {
+  margin: 0 0 12px;
+}
+
+.match-import {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.match-help {
+  flex: 1 1 18em;
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.match-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11em, 1fr));
+  gap: 0 10px;
+}
+
+.match-fields .team-field {
+  margin-top: 4px;
+}
+
+.note.error {
+  color: var(--clock);
 }
 
 .voice-mode .board {

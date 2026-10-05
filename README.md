@@ -26,7 +26,7 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
   anche a un errore di qualche minuto prima (un +2 che era un +3, un fallo dato alla persona sbagliata).
   I punti non scendono mai sotto zero e un fallo tolto conta nel periodo in cui era stato fischiato.
 - **Punti e falli ai giocatori**, da accendere in Impostazioni in fondo alla pagina. Per ogni squadra si inseriscono
-  i numeri di maglia, da 0 a 99, al massimo 12 (16 se si spunta «Amichevole»), e se si vuole il nome del giocatore,
+  i numeri di maglia, da 0 a 99 e 00 (che resta diverso da 0; a voce «doppio zero»), al massimo 12 (16 se si spunta «Amichevole»), e se si vuole il nome del giocatore,
   che si può scrivere o cambiare anche dopo. Accanto a ogni numero ci sono +1, +2, +3 e F; i punti dei giocatori
   fanno il punteggio della squadra e i loro falli i falli di squadra. Il pulsante F mostra i falli presi (F1, F2…):
   al quinto diventa rosso, il numero del giocatore si colora di rosso e i suoi pulsanti dei punti si spengono.
@@ -45,6 +45,18 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
   per portarle su un altro, «Invia squadre» crea un link con tutte le squadre salvate (numeri e nomi compresi):
   aperto sull'altro dispositivo, il tabellone chiede conferma e le aggiunge, sostituendo quelle con lo stesso nome.
   Dalla pagina aperta come file il link punta comunque al sito online.
+- **Importa partita**, in cima alle Impostazioni: prima di cominciare a segnare legge un file e precompila la
+  partita. Prende il giorno, i dati della gara (campionato, giornata, numero gara, campo, orario), le due squadre
+  con il colore della maglia e tutti i giocatori con numero e nome, e accende «Punti e falli ai giocatori». Le due
+  squadre finiscono anche fra le «Squadre salvate», per richiamarle nelle partite dopo; una squadra salvata con lo
+  stesso nome viene aggiornata con i giocatori del file (il tabellone lo dice prima di farlo). Con più di 12
+  giocatori in una squadra spunta da solo «Amichevole» (al massimo 16). Legge la scheda della partita, il file
+  che Claude prepara dal referto o dalla convocazione (vedi [La scheda della partita](#la-scheda-della-partita)),
+  oppure un «File della partita» già scaricato, di cui prende squadre, giocatori e dati e lascia le azioni. Se
+  nella partita ci sono già azioni non importa niente: prima si preme «Nuova partita».
+- **Dati della partita**, in Impostazioni sotto «Importa partita»: giorno, orario, campionato, giornata, numero gara
+  e campo, che si scrivono anche a mano. Finiscono nel file della partita e nell'archivio; «Nuova partita» li svuota,
+  perché ogni partita ha i suoi.
 - **Comandi vocali**, da accendere in Impostazioni (accendono anche i giocatori). In fondo allo schermo restano due
   pulsanti grandi: il cronometro e il microfono. Si tiene premuto il microfono, si parla, si lascia: finché il dito è giù
   il microfono ascolta, anche con le pause (se il riconoscimento si ferma da solo, riparte e la frase resta una).
@@ -129,12 +141,13 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
   partita (si cambia in Impostazioni, se non è oggi) e il punto della partita («Q3 4:12», «Fine Q2», «Finale»).
 - **Archivio e statistiche**: «Salva nell'archivio» conserva la partita su questo dispositivo (salvarla di nuovo la
   aggiorna); il pulsante «Statistiche» apre la pagina [statistiche.html](statistiche.html), dove ci sono:
-  - l'elenco delle partite dell'archivio, con «Aggiungi file» per quelle scaricate su un altro dispositivo e
+  - l'elenco delle partite dell'archivio, con giorno, campionato, giornata, numero gara e campo, «Aggiungi file» per quelle scaricate su un altro dispositivo e
     «Scarica l'archivio» per portarlo altrove o tenerne una copia;
   - il tabellino di una partita con tutto lo scout: minuti, punti, tiri da 2, da 3 e liberi segnati/tentati, rimbalzi
     in attacco, in difesa e totali, assist, palle recuperate e perse, stoppate date e subite, falli fatti e subiti,
     più/meno e valutazione FIBA;
-  - le statistiche di una squadra in un periodo a scelta (dal giorno… al giorno…): vinte e perse, punti fatti e
+  - le statistiche di una squadra in un periodo a scelta (dal giorno… al giorno…) e, se si vuole, di un solo
+    campionato (quello scritto nei dati della partita; le partite senza campionato compaiono solo con «Tutti»): vinte e perse, punti fatti e
     subiti, e per ogni giocatore partite giocate, medie a partita o totali, percentuali di tiro; «Scarica per Excel»
     salva la tabella in un file che Excel apre direttamente.
 
@@ -178,7 +191,10 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
 
 «File della partita» scarica `partita_<casa>_<ospiti>_<giorno>.json`, testo in formato JSON con:
 
-- `squadre`: nome e giocatori (numero e nome) di casa e ospiti;
+- `partita`, solo se sono stati scritti: i dati della gara, con gli stessi nomi della scheda della partita
+  (`campionato`, `giornata`, `gara`, `campo`, `ora`), così il file si reimporta com'è con «Importa partita»;
+- `squadre`: nome, colore e giocatori (numero e nome) di casa e ospiti. Il numero è un numero, tranne «00», che
+  è scritto come testo (`"00"`) per restare diverso da `0`, anche nelle azioni e nel tabellino;
 - `azioni`, in ordine di tempo: canestri, tiri sbagliati, rimbalzi, assist, palle recuperate e perse, stoppate, falli
   fatti e subiti, timeout, quintetti e cambi, con squadra, numero e nome del giocatore, punteggio dopo l'azione e la
   `scritta` pronta per la sovrimpressione («Canestro da 2 · #25 Rossi», «Fallo · #7 Bianchi (3°)»,
@@ -188,11 +204,103 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
 - `non_registrati`: i comandi a voce non capiti, con la frase sentita e il motivo;
 - `video`: il nome del file del video aperto nel tabellone, se la partita è stata segnata guardandolo; in quel caso
   ogni azione ha anche `secondi_video`, il punto del video in cui è stata detta o segnata;
-- `dati`: i dati grezzi della partita, da cui la pagina delle statistiche ricalcola tutto.
+- `dati`: i dati grezzi della partita, da cui la pagina delle statistiche ricalcola tutto; i dati della gara
+  sono in `dati.match` (`league`, `round`, `number`, `venue`, `time`), da cui le statistiche filtrano il campionato.
+
+I campi `partita` e `dati.match` sono facoltativi: un file senza, come quelli scaricati prima, si legge come sempre.
 
 Ogni voce è agganciata al tempo del tabellone, non all'ora: `periodo` («Q3»), `numero_periodo` (3), `tempo` come si
 legge sul tabellone («2:26», e nell'ultimo minuto «45.3») e `ms_restanti`, i millisecondi che mancano alla fine del
 periodo. Nel video un'azione si ritrova leggendo il tabellone inquadrato; la fine di ogni periodo è a 0:00.
+
+## La scheda della partita
+
+È il file che «Importa partita» legge per precompilare la partita: un JSON semplice, da scrivere con qualsiasi
+editor di testo e salvare con estensione `.json`. Lo prepara Claude dal referto elettronico FIP (PDF) o dalla
+convocazione; si può anche scrivere a mano.
+
+```json
+{
+ "formato": "tabellone-basket-scheda", "versione": 1,
+ "partita": {"giorno": "2026-10-04", "ora": "18:00", "campionato": "DR1", "giornata": "1a andata", "gara": "693", "campo": "Castelfranco Veneto"},
+ "casa":   {"nome": "PC52", "colore": "blu", "giocatori": [{"numero": 6, "nome": "Viero Alessandro"}]},
+ "ospiti": {"nome": "Mogliano", "colore": "bianca", "giocatori": [{"numero": 34, "nome": "Prencipe"}]}
+}
+```
+
+Come si compila:
+
+- `formato` e `versione` vanno scritti così, sempre uguali;
+- `partita`: tutti i campi sono facoltativi. `giorno` come `2026-10-04` (va bene anche `4/10/2026`), `ora` come
+  `18:00` (anche `18.00`), `campionato` com'è nel referto («DR1»: è il nome con cui le statistiche filtrano, quindi
+  conviene scriverlo sempre uguale), `giornata` («1a giornata andata»), `gara` il numero di gara del referto, `campo`
+  la palestra o il paese. Senza `giorno` resta quello scritto in Impostazioni;
+- `casa` e `ospiti`: `nome` è il nome corto che compare sul tabellone (al massimo 14 caratteri, per esempio
+  «Mogliano» e non «Pol. Mogliano Veneto»; con lo stesso nome la squadra salvata viene aggiornata), `colore` il
+  colore della maglia (facoltativo, vale anche nei comandi vocali), `giocatori` l'elenco con `numero` e `nome`;
+- `numero` da 0 a 99, scritto come numero (`6`) o come testo (`"6"`); il doppio zero si scrive `"00"`, fra
+  virgolette, e resta diverso da `0`. Ogni numero una volta sola per squadra. Al massimo 16 giocatori per squadra;
+  oltre i 12 il tabellone spunta «Amichevole»;
+- `nome` al massimo 20 caratteri, quello che si vuole vedere nella cronaca e nelle scritte del video: nel referto FIP
+  è «Cognome Nome» e così si può lasciare. Per i comandi vocali conta che il cognome sia una parola che si dice
+  (con due giocatori dallo stesso cognome a voce si usa il numero). Il nome si può lasciare vuoto (`""`).
+
+Dal referto elettronico FIP: in alto ci sono campionato, giornata, numero gara, data, ora e campo; nelle due
+tabelle delle squadre, per ogni giocatore, numero di maglia e «Cognome Nome». Il capitano («(cap.)») e gli
+allenatori non servono. Il colore delle maglie nel referto non c'è: si prende dalla convocazione o lo si chiede.
+
+L'esempio vero, la partita PC52 – Mogliano 80-70 del 4 ottobre 2026, è nel file
+[esempi/scheda_pc52_mogliano_2026-10-04.json](esempi/scheda_pc52_mogliano_2026-10-04.json):
+
+```json
+{
+ "formato": "tabellone-basket-scheda",
+ "versione": 1,
+ "partita": {
+  "giorno": "2026-10-04",
+  "campionato": "DR1",
+  "giornata": "1a giornata andata",
+  "gara": "693",
+  "campo": "Castelfranco Veneto"
+ },
+ "casa": {
+  "nome": "PC52",
+  "colore": "blu",
+  "giocatori": [
+   {"numero": 0, "nome": "Cappelletto Marco"},
+   {"numero": 5, "nome": "Brustolon Marco"},
+   {"numero": 6, "nome": "Viero Alessandro"},
+   {"numero": 8, "nome": "Sabetta Giulio"},
+   {"numero": 9, "nome": "Cuzzit Gianluca"},
+   {"numero": 13, "nome": "Marino Andrea"},
+   {"numero": 20, "nome": "Toniato Luca"},
+   {"numero": 21, "nome": "Marcon Michele"},
+   {"numero": 22, "nome": "Scapinello Pietro"},
+   {"numero": 25, "nome": "Sartor Mario"},
+   {"numero": 31, "nome": "Garatti Gabriele"},
+   {"numero": 33, "nome": "Ferrara Edoardo"}
+  ]
+ },
+ "ospiti": {
+  "nome": "Mogliano",
+  "colore": "bianca",
+  "giocatori": [
+   {"numero": 0, "nome": "Manente"},
+   {"numero": 5, "nome": "R. Gambato"},
+   {"numero": 9, "nome": "Bertotto"},
+   {"numero": 10, "nome": "Scaramuzza"},
+   {"numero": 11, "nome": "Negrin"},
+   {"numero": 14, "nome": "Pavan"},
+   {"numero": 18, "nome": "De Cicco"},
+   {"numero": 21, "nome": "Rinaldi"},
+   {"numero": 23, "nome": "Pellegrinon"},
+   {"numero": 33, "nome": "Pranzo"},
+   {"numero": 34, "nome": "Prencipe"},
+   {"numero": 77, "nome": "A. Gambato"}
+  ]
+ }
+}
+```
 
 ## La diretta con Firebase
 
@@ -231,7 +339,7 @@ dell'emulatore, dove si inventa un account.
 | [statistiche.html](statistiche.html) | La pagina dell'archivio e delle statistiche della stagione |
 | [statistiche.js](statistiche.js) | Archivio, tabellino con lo scout e statistiche della stagione nella pagina |
 | [style.css](style.css) | La grafica, anche per il telefono |
-| [game.js](game.js) | Le regole e i calcoli, senza grafica: tabellino e scout, file della partita, archivio e statistiche, comandi vocali, cosa pubblicare nella diretta |
+| [game.js](game.js) | Le regole e i calcoli, senza grafica: tabellino e scout, file della partita, importazione della scheda, archivio e statistiche, comandi vocali, cosa pubblicare nella diretta |
 | [app.js](app.js) | Collega i pulsanti della pagina alle regole |
 | [voice.js](voice.js) | Il microfono a pulsante: ascolta finché lo si tiene premuto |
 | [tests/voice.test.js](tests/voice.test.js) | Test automatici del microfono a pulsante |
@@ -242,6 +350,7 @@ dell'emulatore, dove si inventa un account.
 | [database.rules.json](database.rules.json) | Le regole del database: chi legge e chi scrive la diretta |
 | [firebase.json](firebase.json) | Le impostazioni per provare la diretta con l'emulatore di Firebase |
 | [tests/game.test.js](tests/game.test.js) | Test automatici delle regole |
+| [esempi/scheda_pc52_mogliano_2026-10-04.json](esempi/scheda_pc52_mogliano_2026-10-04.json) | La scheda della partita PC52 – Mogliano del 4 ottobre 2026, da importare con «Importa partita» |
 
 ## Test
 
