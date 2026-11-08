@@ -119,6 +119,15 @@
 
     <section class="log-panel">
       <h2>Cronaca</h2>
+      <div class="pbp-panel" id="pbp-panel" hidden>
+        <p class="pbp-info" id="pbp-info"></p>
+        <ul class="pbp-warnings" id="pbp-warnings"></ul>
+        <p class="pbp-help" id="pbp-help" hidden>
+          Il referto può avere errori del tavolo, che il tabellone carica come sono. Per correggere un avviso premi
+          «Vai a…», che porta lì il cronometro, e di' il quintetto giusto, per esempio «quintetto 4 7 9 12 25
+          bianco»: il quintetto detto a mano vale da lì in avanti, anche dopo una nuova importazione.
+        </p>
+      </div>
       <ol id="log" class="log"></ol>
       <p class="hint">Barra spaziatrice: avvia e ferma il cronometro · Ctrl+Z: annulla l'ultima azione</p>
     </section>
@@ -171,7 +180,9 @@
           </label>
           <p class="match-help">
             Prima di cominciare: da una scheda della partita o da un «File della partita» prende squadre, colori,
-            giocatori e dati della gara, e salva le due squadre fra le «Squadre salvate».
+            giocatori e dati della gara, e salva le due squadre fra le «Squadre salvate». Dal play-by-play di
+            FIPSTATS prende anche tutte le azioni del referto (canestri, liberi, falli, falli subiti, timeout,
+            quintetti e cambi): si importa anche a scout cominciato, e reimportarlo sostituisce solo quelle.
           </p>
         </div>
         <p class="note" id="import-note" aria-live="polite"></p>
