@@ -53,7 +53,9 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
   giocatori in una squadra spunta da solo «Amichevole» (al massimo 16). Legge la scheda della partita, il file
   che Claude prepara dal referto o dalla convocazione (vedi [La scheda della partita](#la-scheda-della-partita)),
   oppure un «File della partita» già scaricato, di cui prende squadre, giocatori e dati e lascia le azioni. Se
-  nella partita ci sono già azioni non importa niente: prima si preme «Nuova partita».
+  nella partita ci sono già azioni non importa niente: prima si preme «Nuova partita». Legge anche il play-by-play
+  di FIPSTATS, che porta in più tutte le azioni del referto e si può importare anche a scout cominciato (vedi
+  [Importare il play-by-play di FIPSTATS](#importare-il-play-by-play-di-fipstats)).
 - **Dati della partita**, in Impostazioni sotto «Importa partita»: giorno, orario, campionato, giornata, numero gara
   e campo, che si scrivono anche a mano. Finiscono nel file della partita e nell'archivio; «Nuova partita» li svuota,
   perché ogni partita ha i suoi.
@@ -198,7 +200,9 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
 - `azioni`, in ordine di tempo: canestri, tiri sbagliati, rimbalzi, assist, palle recuperate e perse, stoppate, falli
   fatti e subiti, timeout, quintetti e cambi, con squadra, numero e nome del giocatore, punteggio dopo l'azione e la
   `scritta` pronta per la sovrimpressione («Canestro da 2 · #25 Rossi», «Fallo · #7 Bianchi (3°)»,
-  «Entra #14 Gialli · esce #7 Bianchi»). Le azioni corrette con «Correggi» non ci sono;
+  «Entra #14 Gialli · esce #7 Bianchi»). Le azioni corrette con «Correggi» non ci sono. Quelle importate dal
+  play-by-play di FIPSTATS hanno in più `"fonte": "fipstats"`; quelle dello scout non hanno `fonte`. Il fallo
+  tecnico ha in più `"tecnico": true` e la scritta «Fallo tecnico · #7 Andreoli (2°)», e conta come gli altri falli;
 - `fine_periodi`: per ogni periodo finito, il punteggio e il tabellino completo fino a quel momento;
 - `tabellino`: il tabellino completo al momento in cui si scarica il file, con minuti, più/meno e valutazione;
 - `non_registrati`: i comandi a voce non capiti, con la frase sentita e il motivo;
@@ -302,6 +306,105 @@ L'esempio vero, la partita PC52 – Mogliano 80-70 del 4 ottobre 2026, è nel fi
 }
 ```
 
+## Importare il play-by-play di FIPSTATS
+
+Dalla stagione 2026-27 ogni partita ha il referto elettronico FIP e il play-by-play di FIPSTATS. Claude sul Mac lo
+trascrive, lo controlla col referto e ne fa un file `tabellone-basket-pbp`. «Importa partita» lo legge e carica,
+oltre a dati della gara e squadre (che finiscono anche fra le «Squadre salvate»), tutte le azioni del referto:
+canestri, tiri liberi segnati e sbagliati, falli, falli subiti, timeout, quintetti e cambi. A mano restano da segnare
+solo i tiri da 2 e da 3 sbagliati, i rimbalzi, gli assist, le palle recuperate e perse e le stoppate.
+
+### Il formato
+
+```json
+{
+ "formato": "tabellone-basket-pbp", "versione": 1,
+ "fonte": "play-by-play FIPSTATS (referto elettronico FIP), trascritto e controllato col referto",
+ "partita": {"giorno": "2026-11-07", "campionato": "DR1", "gara": "728", "campo": "Valdobbiadene"},
+ "casa":   {"nome": "Valdobasket", "colore": "bianca", "giocatori": [{"numero": 1, "nome": "Ramirez Henry ..."}]},
+ "ospiti": {"nome": "PC52", "colore": "blu", "giocatori": [{"numero": 13, "nome": "Marino Andrea"}]},
+ "video": {"file": "MONTATO_07nov26_Valdobasket_vs_PC52_DR1.mp4"},
+ "azioni": [
+  {"periodo": 1, "tempo": "10:00", "tipo": "quintetto", "squadra": "casa", "in_campo": [1, 9, 12, 19, 21]},
+  {"periodo": 1, "tempo": "9:38", "tipo": "canestro", "squadra": "ospiti", "numero": 20, "punti": 2, "punteggio": {"casa": 0, "ospiti": 2}},
+  {"periodo": 1, "tempo": "8:58", "tipo": "libero_sbagliato", "squadra": "ospiti", "numero": 21, "punteggio": {"casa": 0, "ospiti": 2}},
+  {"periodo": 1, "tempo": "5:40", "tipo": "cambio", "squadra": "casa", "entra": [5, 20], "esce": [19, 21]},
+  {"periodo": 4, "tempo": "0:53", "tipo": "fallo", "squadra": "casa", "numero": 7, "tecnico": true, "punteggio": {"casa": 61, "ospiti": 67}}
+ ],
+ "controllo": {"punti": {"casa": 61, "ospiti": 72}, "tiri_liberi_segnati": {"casa": 12, "ospiti": 24}},
+ "avvisi": ["Q4 3:50 casa: esce [3] che non risulta in campo; dopo il cambio in campo risultano 6: [1, 6, 7, 9, 16, 21]"]
+}
+```
+
+- `partita`, `casa` e `ospiti` si scrivono come nella [scheda della partita](#la-scheda-della-partita); il numero
+  `"00"` resta diverso da `0` anche nelle azioni.
+- `azioni` sono nell'ordine vero della partita, anche a parità di tempo, e il tabellone lo tiene. `periodo` è 1-4
+  (5 e oltre i supplementari), `tempo` è quello del tabellone («9:38», nell'ultimo minuto «0:53»), `squadra` è
+  `casa` o `ospiti`. Canestri, liberi sbagliati, falli e falli subiti hanno sempre il `numero` del giocatore, che
+  deve essere fra i giocatori della squadra. `punteggio`, se c'è, è quello dopo l'azione. Un'azione può avere
+  `avviso` (un errore del tavolo in quel punto) e `secondi_video`, il secondo del video `video.file` in cui avviene.
+- `controllo`: i totali per squadra che il tabellone riconta prima di importare: `punti`, `tiri_liberi_segnati`,
+  `tiri_liberi_sbagliati`, `canestri_da_2`, `triple`, `falli`, `falli_subiti`, `cambi` (le azioni di cambio) e
+  `timeout`. Se uno non torna, o se un'azione è sbagliata (un tempo che non va, un numero che non è in squadra, un
+  punteggio che non torna con i canestri, un'azione fuori ordine), non importa niente e dice quale e dove.
+- `avvisi`: gli errori del tavolo trovati trascrivendo, ciascuno con il punto della partita.
+
+L'esempio vero, Valdobasket – PC52 61-72 del 7 novembre 2026, è nel file
+[esempi/2026-11-08-tabellone-pbp-esempio-valdobasket-pc52.json](esempi/2026-11-08-tabellone-pbp-esempio-valdobasket-pc52.json).
+
+### Corrispondenza dei tipi
+
+| Nel file | Nel tabellone |
+| --- | --- |
+| `canestro` con `punti` 1, 2 o 3 | canestro (`score`): tiro libero, da 2, tripla |
+| `libero_sbagliato` | tiro libero sbagliato (`stat` `miss` da 1) |
+| `fallo` | fallo (`foul`); con `"tecnico": true` in cronaca è «fallo tecnico», nel File della partita ha `"tecnico": true` e la scritta «Fallo tecnico ·…», e conta come un fallo normale, personale e di squadra |
+| `fallo_subito` | fallo subito (`stat` `fd`) |
+| `timeout` | timeout |
+| `quintetto` con `in_campo` | quintetto (`lineup`) |
+| `cambio` con `entra` ed `esce` | cambio (`sub`) |
+
+Il `tempo` diventa il tempo del tabellone dell'azione, `secondi_video` il suo punto del video.
+
+### Cosa succede importando
+
+- Prima di caricare si controlla tutto, totali compresi; poi il tabellone chiede conferma e dice cosa sostituisce.
+- Le squadre del file devono essere quelle della partita aperta. Se la partita ha già giocatori di altre squadre,
+  chiede prima di sostituirle; se ci sono anche azioni segnate a mano non importa: prima «Nuova partita».
+- Si importa anche a scout già cominciato, purché a mano non ci siano già canestri, falli, timeout o cambi, che si
+  conterebbero due volte: il tabellone dice quale e non importa niente.
+- Reimportare lo stesso file, o uno corretto, sostituisce solo le azioni importate: quelle segnate a mano restano.
+- Le azioni importate hanno nella cronaca il segno «FIP», e la cronaca va in ordine di partita. «Annulla» (anche a
+  voce e con Ctrl+Z) non le tocca, e i pulsanti di punti, falli, timeout e «Correggi» si spengono: si correggono
+  solo reimportando il file.
+- Toccando un'azione importata nella cronaca, periodo e cronometro vanno a quel momento (se il cronometro correva,
+  continua da lì) e, se l'azione ha `secondi_video` e il video è aperto, ci va anche il video: così il cronometro
+  dello scout a mano si riallinea in un clic.
+- La partita è finita: il tabellino e il file arrivano alla fine dell'ultimo periodo, e lo stato è «Finale».
+
+### Lo scout in modalità completamento
+
+Con le azioni importate, a voce si segnano solo le voci che FIPSTATS non dà: tiri da 2 e da 3 sbagliati, rimbalzi,
+assist, palle recuperate e perse, stoppate. Se si dice un canestro, un tiro libero (segnato o sbagliato), un fallo,
+un fallo subito, un timeout o un cambio, il tabellone non lo registra e risponde «Già nel referto»; non finisce
+nemmeno fra i comandi non capiti. In un comando con più azioni («canestro del 4, assist del 25») registra quelle
+che mancano e dice quali erano già nel referto. Il quintetto si dice sempre. Rimbalzi e assist si collegano anche alle
+azioni importate: il rimbalzo senza «attacco» o «difesa» si capisce dall'ultimo tiro sbagliato, anche un tiro
+libero del referto, e l'assist con un numero che c'è in tutte e due le squadre va alla squadra dell'ultimo canestro
+su azione. Nel tabellino e nelle statistiche i tiri da 2 e da 3 tentati sono i segnati del referto più gli sbagliati
+dello scout.
+
+### Gli avvisi del referto
+
+Il referto può avere errori del tavolo, per esempio un giocatore che esce due volte senza essere rientrato. I cambi
+importati non passano dai controlli dello scout a voce, che li rifiuterebbero: si caricano come sono, e i minuti in
+campo si contano anche con sei giocatori in campo. Gli `avvisi` del file si mostrano dopo l'importazione e restano
+sopra la cronaca, ciascuno con il punto della partita, chi risulta in campo lì e il pulsante «Vai a…» che ci porta
+il cronometro. Per correggere si dice il quintetto giusto in quel momento («quintetto 6 7 9 16 21 bianco»): il
+quintetto detto a mano è sempre permesso e vince su quello importato da lì in avanti, anche dopo una nuova
+importazione; quando in campo risultano 5 l'avviso diventa verde. Nel quintetto non può esserci chi a quel punto ha
+già 5 falli.
+
 ## La diretta con Firebase
 
 La diretta sta in un database Realtime Database di Firebase, piano gratuito Spark: fino a 100 persone collegate
@@ -351,6 +454,8 @@ dell'emulatore, dove si inventa un account.
 | [firebase.json](firebase.json) | Le impostazioni per provare la diretta con l'emulatore di Firebase |
 | [tests/game.test.js](tests/game.test.js) | Test automatici delle regole |
 | [esempi/scheda_pc52_mogliano_2026-10-04.json](esempi/scheda_pc52_mogliano_2026-10-04.json) | La scheda della partita PC52 – Mogliano del 4 ottobre 2026, da importare con «Importa partita» |
+| [esempi/2026-11-08-tabellone-pbp-esempio-valdobasket-pc52.json](esempi/2026-11-08-tabellone-pbp-esempio-valdobasket-pc52.json) | Il play-by-play di FIPSTATS di Valdobasket – PC52 del 7 novembre 2026, da importare con «Importa partita» |
+| [tests/pbp.test.js](tests/pbp.test.js) | Test automatici del play-by-play di FIPSTATS, sul file d'esempio |
 
 ## Test
 

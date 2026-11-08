@@ -25,6 +25,7 @@ const TALK_KEYS = ['Alt', 'Enter', 'PageDown', 'ArrowRight', 'ArrowDown'];
 const CLOCK_KEYS = ['PageUp', 'ArrowLeft', 'ArrowUp'];
 // Un tasto premuto e lasciato subito (molti telecomandi fanno così) apre il microfono finché non lo si ripreme.
 const TAP_MS = 300;
+const LOCKED_TITLE = 'Già nel referto: canestri, falli e timeout arrivano dal play-by-play e si correggono reimportando il file.';
 
 let state = load();
 let videoUrl = null; // il video della partita aperto in questa pagina
@@ -33,6 +34,7 @@ let videoSavedAt = 0;
 let clockHeld = false; // il cronometro fermo perché è fermo il video: riparte quando riparte il video
 let videoMark = { s: 0, at: 0 }; // dove era il video (secondi) e quando lo si è visto, per misurare i salti
 let keyTalk = null; // il tasto del microfono: { since, latched } finché il microfono è aperto da tastiera
+let alignSeek = false; // il video si sposta insieme al cronometro già riallineato: il salto non lo tocca
 let wakeLock = null; // con i comandi vocali lo schermo resta acceso
 let library = loadLibrary();
 let audioCtx = null;
@@ -60,6 +62,7 @@ function load() {
       saved.playerNames ??= { home: {}, away: {} }; // e prima dei nomi
       saved.origins ??= { home: null, away: null }; // e prima di «Modifica»
       saved.match ??= Game.emptyMatch(); // e prima dei dati della partita
+      saved.pbp ??= null; // e prima del play-by-play di FIPSTATS
       return saved;
     }
   } catch {
@@ -111,6 +114,9 @@ function render() {
   $('#voice-dock').hidden = !state.settings.voice;
   $('#dock-score').textContent =
     `${state.names.home} ${Game.score(events, 'home')} – ${Game.score(events, 'away')} ${state.names.away}`;
+  // con il play-by-play importato canestri, falli e timeout sono già nel referto: i pulsanti si spengono
+  const locked = Game.hasImported(state);
+  if (locked) correcting.home = correcting.away = false;
   for (const team of TEAMS) {
     const panel = $(`[data-team="${team}"]`);
     const fix = correcting[team];
@@ -127,23 +133,28 @@ function render() {
     $('[data-role="fouls"]', panel).textContent = fouls;
     $('[data-role="bonus"]', panel).hidden = fouls < Game.BONUS_FOULS;
     $('[data-role="timeouts"]', panel).textContent = '●'.repeat(timeouts) + '○'.repeat(maxTimeouts - timeouts);
-    $('[data-action="timeout"]', panel).disabled = timeouts === 0;
+    $('[data-action="timeout"]', panel).disabled = locked || timeouts === 0;
     panel.classList.toggle('correcting', fix);
     $('[data-action="correct"]', panel).setAttribute('aria-pressed', String(fix));
+    $('[data-action="correct"]', panel).disabled = locked;
     for (const btn of panel.querySelectorAll('.btn-row.team-only button')) {
       const pts = Number(btn.dataset.pts);
       btn.textContent = `${fix ? '−' : '+'}${pts}`;
-      btn.disabled = fix && !Game.canRemovePoints(events, team, pts);
+      btn.disabled = locked || (fix && !Game.canRemovePoints(events, team, pts));
     }
     const teamFoul = $('button.team-only[data-action="foul"]', panel);
     teamFoul.textContent = fix ? '− Fallo' : '+ Fallo';
-    teamFoul.disabled = fix && !Game.lastFoul(events, team);
+    teamFoul.disabled = locked || (fix && !Game.lastFoul(events, team));
+    for (const btn of panel.querySelectorAll('[data-action="timeout"], [data-action="correct"], .team-only button')) {
+      btn.title = locked ? LOCKED_TITLE : '';
+    }
     renderPlayers(panel, team);
   }
   $('#period').textContent = Game.periodLabel(period);
   $('[data-action="prev-period"]').disabled = period === 1;
-  $('[data-action="undo"]').disabled = events.length === 0;
+  $('[data-action="undo"]').disabled = !Game.canUndo(state);
   renderClock();
+  renderPbp();
   renderLog();
   Tabellino.render($('#box'), Game.boxScore(state, Date.now()));
   renderLive();
@@ -177,6 +188,7 @@ function renderPlayers(panel, team) {
     return;
   }
   const fix = correcting[team];
+  const locked = Game.hasImported(state);
   const court = Game.courtAt(state.events, team, Game.boardTime(state, Date.now()));
   const head = document.createElement('li');
   head.className = 'player head';
@@ -198,12 +210,14 @@ function renderPlayers(panel, team) {
     li.append(who, cell('p-pts', String(Game.playerPoints(state.events, team, number))));
     for (const pts of [1, 2, 3]) {
       const text = `${fix ? '−' : '+'}${pts}`;
-      const disabled = fix ? !Game.canRemovePoints(state.events, team, pts, number) : out;
+      const disabled = locked || (fix ? !Game.canRemovePoints(state.events, team, pts, number) : out);
       li.append(playerButton('score', text, `${text} al numero ${number}`, disabled, pts));
     }
     const foul = fix
       ? playerButton('foul', '−F', `−F al numero ${number}`, !Game.lastFoul(state.events, team, number))
-      : playerButton('foul', fouls > 0 ? `F${fouls}` : 'F', `+F al numero ${number}`, out);
+      : playerButton('foul', fouls > 0 ? `F${fouls}` : 'F', `+F al numero ${number}`, out || locked);
+    if (locked) for (const btn of li.querySelectorAll('button')) btn.title = LOCKED_TITLE;
+    if (locked) foul.title = LOCKED_TITLE;
     foul.classList.add('foul-btn');
     foul.classList.toggle('full', out && !fix);
     li.append(foul);
@@ -598,6 +612,10 @@ async function importMatchFile(file) {
     fail(`«${file.name}» non è un file che il tabellone sa leggere: serve un file .json.`);
     return;
   }
+  if (json?.formato === 'tabellone-basket-pbp') {
+    importPlayByPlay(json, note, fail);
+    return;
+  }
   const read = Game.readMatchSheet(json);
   if (read.error) {
     fail(read.error);
@@ -627,6 +645,111 @@ Squadre, giocatori e dati della partita di adesso vengono sostituiti. ${saved}`;
   note.textContent = `Importata: ${count(home)} – ${count(away)}.${friendly}`;
 }
 
+// Il play-by-play di FIPSTATS: dati, squadre e tutte le azioni del referto. Prima si controlla tutto (anche i
+// totali), poi si chiede; reimportarlo sostituisce solo le azioni importate prima, quelle segnate a mano restano.
+function importPlayByPlay(json, note, fail) {
+  const read = Game.readPlayByPlay(json);
+  if (read.error) {
+    fail(read.error);
+    return;
+  }
+  const { pbp } = read;
+  const check = Game.playByPlayCheck(state, pbp);
+  if (check.error) {
+    fail(check.error);
+    return;
+  }
+  const { home, away } = pbp.sheet.teams;
+  const when = pbp.sheet.date ? ` del ${pbp.sheet.date.split('-').reverse().join('/')}` : '';
+  const lines = [`Importo il play-by-play di ${home.name} – ${away.name}${when}, ${pbp.events.length} azioni?`];
+  if (check.otherTeams) {
+    lines.push(`La partita aperta ha altre squadre (${state.names.home} – ${state.names.away}): le sostituisco con quelle del file.`);
+  }
+  if (check.replaced) lines.push(`Sostituisco le ${check.replaced} azioni importate prima.`);
+  if (check.kept) lines.push(`Le ${check.kept} azioni segnate a mano restano come sono.`);
+  const known = [home, away].filter((t) => Game.hasStoredTeam(library, t.name)).map((t) => t.name);
+  lines.push(
+    known.length
+      ? `Fra le squadre salvate ${known.join(' e ')} ${known.length === 1 ? 'viene aggiornata' : 'vengono aggiornate'} con i giocatori del file.`
+      : 'Le due squadre si aggiungono alle squadre salvate.'
+  );
+  if (!confirm(lines.join('\n'))) return;
+  const result = Game.importPlayByPlay(state, library, pbp);
+  if (result.error) {
+    fail(result.error);
+    return;
+  }
+  library = result.library;
+  saveLibrary();
+  correcting.home = correcting.away = false;
+  update();
+  const final = `${home.name} ${Game.score(state.events, 'home')} – ${Game.score(state.events, 'away')} ${away.name}`;
+  const kept = result.kept ? `, ${result.kept} segnate a mano restano` : '';
+  const friendly = result.friendly ? ' Più di 12 giocatori: ho spuntato «Amichevole».' : '';
+  const warnings = result.warnings.length
+    ? ` Avvisi del referto, anche sopra la cronaca: ${result.warnings.join(' · ')}.`
+    : ' Nessun avviso del referto.';
+  note.textContent = `Importato il play-by-play: ${result.imported} azioni${kept}, ${final}.${friendly}${warnings}`;
+  if (result.warnings.length) {
+    alert(`Avvisi del referto:\n\n${result.warnings.join('\n')}\n\nPer correggere porta il cronometro a quel punto e di' il quintetto giusto.`);
+  }
+}
+
+// Sopra la cronaca, con il play-by-play: quante azioni vengono dal referto e gli avvisi del tavolo, ciascuno con
+// il punto della partita, chi risulta in campo lì e il pulsante per portarci il cronometro.
+function renderPbp() {
+  const panel = $('#pbp-panel');
+  const on = Game.hasImported(state);
+  panel.hidden = !on;
+  if (!on) return;
+  const count = state.events.filter(Game.isImported).length;
+  $('#pbp-info').textContent =
+    `Play-by-play di FIPSTATS: ${count} azioni dal referto, segnate «FIP» nella cronaca; toccane una per portare lì ` +
+    'il cronometro (e il video). A voce segni tiri da 2 e da 3 sbagliati, rimbalzi, assist, palle recuperate e ' +
+    'perse, stoppate: canestri, liberi, falli, falli subiti, timeout e cambi sono già nel referto e si correggono ' +
+    'reimportando il file.';
+  const warnings = Game.pbpWarnings(state);
+  $('#pbp-help').hidden = warnings.length === 0;
+  $('#pbp-warnings').replaceChildren(
+    ...warnings.map((w) => {
+      const li = document.createElement('li');
+      li.append(cell('pbp-text', `⚠ ${w.text}`));
+      if (w.court) {
+        const ok = w.court.length === 5;
+        const status = cell('pbp-status', `${ok ? '✓ ' : ''}in campo lì adesso: ${w.court.join(' ')} (${w.court.length})`);
+        status.classList.toggle('ok', ok);
+        li.append(status);
+      }
+      if (w.at) {
+        const go = document.createElement('button');
+        go.type = 'button';
+        go.dataset.action = 'pbp-goto';
+        go.dataset.period = w.at.period;
+        go.dataset.ms = w.at.clockMs;
+        if (w.team) go.dataset.team = w.team;
+        go.textContent = `Vai a ${Game.periodLabel(w.at.period)} ${Game.formatClock(w.at.clockMs)}`;
+        li.append(go);
+      }
+      return li;
+    })
+  );
+}
+
+// Porta periodo e cronometro al momento di un'azione importata e, se il video è aperto e l'azione ha il suo
+// punto del video, anche il video: il cronometro non si sposta una seconda volta con il salto del video.
+function goToMoment(at, videoMs) {
+  Game.alignClock(state, Date.now(), at);
+  if (videoUrl !== null && videoMs !== undefined) {
+    const target = videoMs / 1000;
+    if (Math.abs(videoEl.currentTime - target) > 0.01) {
+      alignSeek = true;
+      videoEl.currentTime = target;
+    }
+    videoEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  update();
+}
+
 function showNote(box, text) {
   $('[data-role="note"]', box).textContent = text;
 }
@@ -654,15 +777,20 @@ function renderClock() {
   for (const btn of document.querySelectorAll('[data-action="adjust"]')) btn.disabled = state.clock.running;
 }
 
+// Con il play-by-play la cronaca va in ordine di partita (a pari tempo nell'ordine del referto, poi lo scout):
+// le azioni importate hanno il segno «FIP» e toccandole il cronometro va a quel momento.
 function renderLog() {
   const totals = { home: 0, away: 0 };
-  const items = state.events.map((e) => {
+  const imported = Game.hasImported(state);
+  const position = new Map(state.events.map((e, i) => [e, i]));
+  const ordered = imported ? [...state.events].sort(Game.byGameTime) : state.events;
+  const items = ordered.map((e) => {
     let what;
     if (e.type === 'score') {
       totals[e.team] += e.pts;
       what = e.pts > 0 ? `+${e.pts}` : `−${-e.pts} correzione`;
     } else if (e.type === 'foul') {
-      what = e.n < 0 ? 'fallo tolto' : 'fallo';
+      what = e.n < 0 ? 'fallo tolto' : e.technical ? 'fallo tecnico' : 'fallo';
     } else if (e.type === 'lineup') {
       what = `in campo ${e.on.join(' ')}`;
     } else if (e.type === 'sub') {
@@ -676,12 +804,24 @@ function renderLog() {
       ? state.names[e.team]
       : `${state.names[e.team]} ${Game.playerLabel(state, e.team, e.player)}`;
     const li = document.createElement('li');
+    const whoCell = cell('who', `${who} ${what}`);
+    if (Game.isImported(e)) {
+      li.classList.add('imported', 'seekable');
+      li.dataset.event = position.get(e);
+      const src = cell('src', 'FIP');
+      src.title = 'Dal play-by-play di FIPSTATS';
+      whoCell.prepend(src);
+      if (e.warning) whoCell.append(cell('warn', ` ⚠ ${e.warning}`));
+    }
     li.append(
       cell('when', `${Game.periodLabel(e.period)} ${Game.formatClock(e.clockMs)}`),
-      cell('who', `${who} ${what}`),
+      whoCell,
       cell('result', `${totals.home}–${totals.away}`)
     );
-    if (e.videoMs !== undefined) {
+    if (Game.isImported(e)) {
+      li.title = `Dal referto: tocca per portare qui il cronometro${e.videoMs !== undefined ? ' e il video' : ''}. Si corregge reimportando il file.`;
+      if (e.videoMs !== undefined) li.dataset.videoMs = e.videoMs;
+    } else if (e.videoMs !== undefined) {
       // toccando la riga il video torna a qualche secondo prima dell'azione
       li.dataset.videoMs = e.videoMs;
       li.classList.toggle('seekable', videoUrl !== null);
@@ -699,12 +839,19 @@ function renderLog() {
       cell('who', `non registrato: «${n.heard}» · ${n.reason}`),
       cell('result', '')
     );
-    return { after: n.after, li };
+    return { after: n.after, note: n, li };
   });
-  const rows = [];
-  for (let i = 0; i <= items.length; i++) {
-    for (const n of notes) if (Math.min(n.after, items.length) === i) rows.push(n.li);
-    if (i < items.length) rows.push(items[i]);
+  let rows = [];
+  if (imported) {
+    // i comandi non registrati al loro tempo, dopo le azioni dello stesso tempo
+    rows = [...ordered.map((e, k) => ({ at: e, rank: 0, li: items[k] })), ...notes.map((n) => ({ at: n.note, rank: 1, li: n.li }))]
+      .sort((a, b) => Game.byGameTime(a.at, b.at) || a.rank - b.rank)
+      .map((r) => r.li);
+  } else {
+    for (let i = 0; i <= items.length; i++) {
+      for (const n of notes) if (Math.min(n.after, items.length) === i) rows.push(n.li);
+      if (i < items.length) rows.push(items[i]);
+    }
   }
   $('#log').replaceChildren(...rows.reverse());
 }
@@ -862,6 +1009,7 @@ document.addEventListener('click', (e) => {
   const fix = team !== undefined && correcting[team];
   const now = Date.now();
   const before = state.events.length;
+  if (Game.hasImported(state) && ['score', 'foul', 'timeout', 'correct'].includes(action)) return; // già nel referto
   switch (action) {
     case 'score':
       if (fix) Game.removePoints(state, now, team, Number(btn.dataset.pts), player);
@@ -1008,6 +1156,14 @@ document.addEventListener('click', (e) => {
     case 'close-video':
       closeVideo();
       return;
+    case 'pbp-goto': {
+      const at = { period: Number(btn.dataset.period), clockMs: Number(btn.dataset.ms) };
+      const same = state.events.find(
+        (ev) => Game.isImported(ev) && ev.warning && ev.team === btn.dataset.team && Game.byGameTime(ev, at) === 0
+      );
+      goToMoment(at, same?.videoMs);
+      return;
+    }
   }
   // Una correzione alla volta: dopo il meno la squadra torna ai pulsanti normali.
   if (fix && (action === 'score' || action === 'foul')) correcting[team] = false;
@@ -1088,6 +1244,10 @@ function videoBeforeSeek() {
 videoEl.addEventListener('seeking', () => {
   const jumpMs = Math.round((videoEl.currentTime - videoBeforeSeek()) * 1000);
   videoMark = { s: videoEl.currentTime, at: performance.now() };
+  if (alignSeek) {
+    alignSeek = false; // il cronometro è già stato portato al momento dell'azione
+    return;
+  }
   if (videoUrl === null || !(state.clock.running || clockHeld) || jumpMs === 0) return;
   Game.moveClock(state, Date.now(), jumpMs);
   update();
@@ -1149,6 +1309,13 @@ document.addEventListener(
 // toccando un'azione della cronaca il video torna a 3 secondi prima, per rivederla (e il cronometro in gioco
 // con lui: tornando avanti dov'eri, con le frecce o la barra del video, torna anche lui dov'era)
 $('#log').addEventListener('click', (e) => {
+  // un'azione del play-by-play porta lì periodo e cronometro, e il video se l'azione ha il suo punto
+  const action = e.target.closest('li[data-event]');
+  const event = action ? state.events[Number(action.dataset.event)] : null;
+  if (event && Game.isImported(event)) {
+    goToMoment({ period: event.period, clockMs: event.clockMs }, event.videoMs);
+    return;
+  }
   const row = e.target.closest('li[data-video-ms]');
   if (!row || videoUrl === null) return;
   videoEl.currentTime = Math.max(0, Number(row.dataset.videoMs) / 1000 - 3);

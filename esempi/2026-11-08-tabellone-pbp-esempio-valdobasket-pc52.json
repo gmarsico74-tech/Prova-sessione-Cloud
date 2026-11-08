@@ -1,0 +1,2615 @@
+{
+ "formato": "tabellone-basket-pbp",
+ "versione": 1,
+ "fonte": "play-by-play FIPSTATS (referto elettronico FIP), trascritto e controllato col referto",
+ "partita": {
+  "giorno": "2026-11-07",
+  "campionato": "DR1",
+  "gara": "728",
+  "campo": "Valdobbiadene"
+ },
+ "casa": {
+  "nome": "Valdobasket",
+  "colore": "bianca",
+  "giocatori": [
+   {
+    "numero": 1,
+    "nome": "Ramirez Henry Ernesto De Jesus Santos"
+   },
+   {
+    "numero": 9,
+    "nome": "Piccinini Matteo"
+   },
+   {
+    "numero": 12,
+    "nome": "Gallina Giosue'"
+   },
+   {
+    "numero": 19,
+    "nome": "Castellan Marco"
+   },
+   {
+    "numero": 21,
+    "nome": "Michielin Riccardo"
+   },
+   {
+    "numero": 20,
+    "nome": "Buziol Francesco"
+   },
+   {
+    "numero": 5,
+    "nome": "Kanyinda Emmanuel Butundu"
+   },
+   {
+    "numero": 7,
+    "nome": "Andreoli Gabriele"
+   },
+   {
+    "numero": 16,
+    "nome": "Pizzolotto Enrico"
+   },
+   {
+    "numero": 6,
+    "nome": "Favotto Michele"
+   },
+   {
+    "numero": 3,
+    "nome": "Ferracin Andrea"
+   },
+   {
+    "numero": 15,
+    "nome": "Vezzi Edoardo"
+   }
+  ]
+ },
+ "ospiti": {
+  "nome": "PC52",
+  "colore": "blu",
+  "giocatori": [
+   {
+    "numero": 13,
+    "nome": "Marino Andrea"
+   },
+   {
+    "numero": 20,
+    "nome": "Toniato Luca"
+   },
+   {
+    "numero": 21,
+    "nome": "Marcon Michele"
+   },
+   {
+    "numero": 25,
+    "nome": "Sartor Mario"
+   },
+   {
+    "numero": 33,
+    "nome": "Ferrara Edoardo"
+   },
+   {
+    "numero": 18,
+    "nome": "Zivkovic Marko"
+   },
+   {
+    "numero": 5,
+    "nome": "Brustolon Marco"
+   },
+   {
+    "numero": 22,
+    "nome": "Scapinello Pietro"
+   },
+   {
+    "numero": 0,
+    "nome": "Cappelletto Marco"
+   },
+   {
+    "numero": 8,
+    "nome": "Sabetta Giulio"
+   }
+  ]
+ },
+ "video": {
+  "file": "MONTATO_07nov26_Valdobasket_vs_PC52_DR1.mp4"
+ },
+ "azioni": [
+  {
+   "periodo": 1,
+   "tempo": "10:00",
+   "tipo": "quintetto",
+   "squadra": "casa",
+   "in_campo": [
+    1,
+    9,
+    12,
+    19,
+    21
+   ]
+  },
+  {
+   "periodo": 1,
+   "tempo": "10:00",
+   "tipo": "quintetto",
+   "squadra": "ospiti",
+   "in_campo": [
+    13,
+    20,
+    21,
+    25,
+    33
+   ]
+  },
+  {
+   "periodo": 1,
+   "tempo": "9:38",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 20,
+   "punti": 2,
+   "punteggio": {
+    "casa": 0,
+    "ospiti": 2
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "8:58",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 19,
+   "punteggio": {
+    "casa": 0,
+    "ospiti": 2
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "8:58",
+   "tipo": "fallo_subito",
+   "squadra": "ospiti",
+   "numero": 21,
+   "punteggio": {
+    "casa": 0,
+    "ospiti": 2
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "8:58",
+   "tipo": "libero_sbagliato",
+   "squadra": "ospiti",
+   "numero": 21,
+   "punteggio": {
+    "casa": 0,
+    "ospiti": 2
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "8:58",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 21,
+   "punti": 1,
+   "punteggio": {
+    "casa": 0,
+    "ospiti": 3
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "7:54",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 12,
+   "punti": 2,
+   "punteggio": {
+    "casa": 2,
+    "ospiti": 3
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "7:15",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 21,
+   "punteggio": {
+    "casa": 2,
+    "ospiti": 3
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "6:04",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 12,
+   "punti": 2,
+   "punteggio": {
+    "casa": 4,
+    "ospiti": 3
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "5:40",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 1,
+   "punteggio": {
+    "casa": 4,
+    "ospiti": 3
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "5:40",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    5,
+    20
+   ],
+   "esce": [
+    19,
+    21
+   ]
+  },
+  {
+   "periodo": 1,
+   "tempo": "5:16",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 1,
+   "punti": 2,
+   "punteggio": {
+    "casa": 6,
+    "ospiti": 3
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "5:01",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    18
+   ],
+   "esce": [
+    21
+   ]
+  },
+  {
+   "periodo": 1,
+   "tempo": "4:03",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 5,
+   "punteggio": {
+    "casa": 6,
+    "ospiti": 3
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "4:03",
+   "tipo": "fallo_subito",
+   "squadra": "ospiti",
+   "numero": 18,
+   "punteggio": {
+    "casa": 6,
+    "ospiti": 3
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "4:03",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    5
+   ],
+   "esce": [
+    13
+   ]
+  },
+  {
+   "periodo": 1,
+   "tempo": "4:03",
+   "tipo": "libero_sbagliato",
+   "squadra": "ospiti",
+   "numero": 18,
+   "punteggio": {
+    "casa": 6,
+    "ospiti": 3
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "4:03",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 18,
+   "punti": 1,
+   "punteggio": {
+    "casa": 6,
+    "ospiti": 4
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "3:28",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 18,
+   "punti": 2,
+   "punteggio": {
+    "casa": 6,
+    "ospiti": 6
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "3:11",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 9,
+   "punti": 2,
+   "punteggio": {
+    "casa": 8,
+    "ospiti": 6
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "3:03",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 9,
+   "punteggio": {
+    "casa": 8,
+    "ospiti": 6
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "3:03",
+   "tipo": "fallo_subito",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punteggio": {
+    "casa": 8,
+    "ospiti": 6
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "3:03",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    22
+   ],
+   "esce": [
+    25
+   ]
+  },
+  {
+   "periodo": 1,
+   "tempo": "3:03",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 1,
+   "punteggio": {
+    "casa": 8,
+    "ospiti": 7
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "3:03",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 1,
+   "punteggio": {
+    "casa": 8,
+    "ospiti": 8
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "2:48",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 1,
+   "punti": 2,
+   "punteggio": {
+    "casa": 10,
+    "ospiti": 8
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "2:34",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 22,
+   "punti": 3,
+   "punteggio": {
+    "casa": 10,
+    "ospiti": 11
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "2:20",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    7,
+    16
+   ],
+   "esce": [
+    1,
+    12
+   ]
+  },
+  {
+   "periodo": 1,
+   "tempo": "2:20",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    0
+   ],
+   "esce": [
+    33
+   ]
+  },
+  {
+   "periodo": 1,
+   "tempo": "2:07",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    6
+   ],
+   "esce": [
+    5
+   ]
+  },
+  {
+   "periodo": 1,
+   "tempo": "1:59",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 3,
+   "punteggio": {
+    "casa": 10,
+    "ospiti": 14
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "1:59",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 7,
+   "punteggio": {
+    "casa": 10,
+    "ospiti": 14
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "1:59",
+   "tipo": "fallo_subito",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punteggio": {
+    "casa": 10,
+    "ospiti": 14
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "1:59",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 1,
+   "punteggio": {
+    "casa": 10,
+    "ospiti": 15
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "1:45",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 7,
+   "punti": 2,
+   "punteggio": {
+    "casa": 12,
+    "ospiti": 15
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "1:08",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 9,
+   "punti": 3,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 15
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "1:04",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 20,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 15
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "1:04",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    3,
+    15
+   ],
+   "esce": [
+    9,
+    20
+   ]
+  },
+  {
+   "periodo": 1,
+   "tempo": "1:04",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 20,
+   "punti": 1,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 16
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "1:04",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 20,
+   "punti": 1,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 17
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "1:04",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    8
+   ],
+   "esce": [
+    20
+   ]
+  },
+  {
+   "periodo": 1,
+   "tempo": "0:35",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 18,
+   "punti": 2,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 19
+   }
+  },
+  {
+   "periodo": 1,
+   "tempo": "0:11",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    20
+   ],
+   "esce": [
+    15
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "10:00",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    15
+   ],
+   "esce": [
+    20
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "8:53",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 6,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 19
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "8:53",
+   "tipo": "fallo_subito",
+   "squadra": "ospiti",
+   "numero": 22,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 19
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "8:53",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 22,
+   "punti": 1,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 20
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "8:53",
+   "tipo": "libero_sbagliato",
+   "squadra": "ospiti",
+   "numero": 22,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 20
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "8:45",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    21
+   ],
+   "esce": [
+    18
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "8:08",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 2,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 22
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "8:08",
+   "tipo": "timeout",
+   "squadra": "casa",
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 22
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "8:08",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    19,
+    21
+   ],
+   "esce": [
+    6,
+    15
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "7:33",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 8,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 22
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "7:17",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 3,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 22
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "7:17",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    20
+   ],
+   "esce": [
+    5
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "7:17",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    1
+   ],
+   "esce": [
+    16
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "6:59",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 21,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 22
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "6:59",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    13
+   ],
+   "esce": [
+    22
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "6:48",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 13,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 22
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "6:48",
+   "tipo": "fallo_subito",
+   "squadra": "casa",
+   "numero": 3,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 22
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "6:48",
+   "tipo": "libero_sbagliato",
+   "squadra": "casa",
+   "numero": 3,
+   "punteggio": {
+    "casa": 15,
+    "ospiti": 22
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "6:48",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 3,
+   "punti": 1,
+   "punteggio": {
+    "casa": 16,
+    "ospiti": 22
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "6:29",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 0,
+   "punti": 3,
+   "punteggio": {
+    "casa": 16,
+    "ospiti": 25
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "6:09",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 8,
+   "punteggio": {
+    "casa": 16,
+    "ospiti": 25
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "6:09",
+   "tipo": "fallo_subito",
+   "squadra": "casa",
+   "numero": 21,
+   "punteggio": {
+    "casa": 16,
+    "ospiti": 25
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "6:09",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    12
+   ],
+   "esce": [
+    3
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "6:09",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 21,
+   "punti": 1,
+   "punteggio": {
+    "casa": 17,
+    "ospiti": 25
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "6:09",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 21,
+   "punti": 1,
+   "punteggio": {
+    "casa": 18,
+    "ospiti": 25
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "6:09",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    25
+   ],
+   "esce": [
+    8
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "5:30",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 12,
+   "punti": 2,
+   "punteggio": {
+    "casa": 20,
+    "ospiti": 25
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "5:08",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 21,
+   "punti": 2,
+   "punteggio": {
+    "casa": 20,
+    "ospiti": 27
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "4:50",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 12,
+   "punti": 2,
+   "punteggio": {
+    "casa": 22,
+    "ospiti": 27
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "4:18",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 12,
+   "punti": 3,
+   "punteggio": {
+    "casa": 25,
+    "ospiti": 27
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "4:18",
+   "tipo": "timeout",
+   "squadra": "ospiti",
+   "punteggio": {
+    "casa": 25,
+    "ospiti": 27
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "4:18",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    33
+   ],
+   "esce": [
+    0
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "4:18",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    9
+   ],
+   "esce": [
+    7
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "3:32",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    22
+   ],
+   "esce": [
+    13
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "3:32",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 12,
+   "punti": 2,
+   "punteggio": {
+    "casa": 27,
+    "ospiti": 27
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "3:32",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    5
+   ],
+   "esce": [
+    20
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "3:16",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 19,
+   "punteggio": {
+    "casa": 27,
+    "ospiti": 27
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "2:51",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 21,
+   "punti": 2,
+   "punteggio": {
+    "casa": 27,
+    "ospiti": 29
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "2:36",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punteggio": {
+    "casa": 27,
+    "ospiti": 29
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "2:36",
+   "tipo": "fallo_subito",
+   "squadra": "casa",
+   "numero": 12,
+   "punteggio": {
+    "casa": 27,
+    "ospiti": 29
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "2:36",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    20
+   ],
+   "esce": [
+    19
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "2:36",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 12,
+   "punti": 1,
+   "punteggio": {
+    "casa": 28,
+    "ospiti": 29
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "2:36",
+   "tipo": "libero_sbagliato",
+   "squadra": "casa",
+   "numero": 12,
+   "punteggio": {
+    "casa": 28,
+    "ospiti": 29
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "1:57",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 21,
+   "punteggio": {
+    "casa": 28,
+    "ospiti": 29
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "1:57",
+   "tipo": "fallo_subito",
+   "squadra": "casa",
+   "numero": 12,
+   "punteggio": {
+    "casa": 28,
+    "ospiti": 29
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "1:57",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    18
+   ],
+   "esce": [
+    21
+   ]
+  },
+  {
+   "periodo": 2,
+   "tempo": "1:57",
+   "tipo": "libero_sbagliato",
+   "squadra": "casa",
+   "numero": 12,
+   "punteggio": {
+    "casa": 28,
+    "ospiti": 29
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "1:57",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 12,
+   "punti": 1,
+   "punteggio": {
+    "casa": 29,
+    "ospiti": 29
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "1:29",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 1,
+   "punteggio": {
+    "casa": 29,
+    "ospiti": 29
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "0:59",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 20,
+   "punteggio": {
+    "casa": 29,
+    "ospiti": 29
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "0:59",
+   "tipo": "fallo_subito",
+   "squadra": "ospiti",
+   "numero": 18,
+   "punteggio": {
+    "casa": 29,
+    "ospiti": 29
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "0:59",
+   "tipo": "libero_sbagliato",
+   "squadra": "ospiti",
+   "numero": 18,
+   "punteggio": {
+    "casa": 29,
+    "ospiti": 29
+   }
+  },
+  {
+   "periodo": 2,
+   "tempo": "0:59",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 18,
+   "punti": 1,
+   "punteggio": {
+    "casa": 29,
+    "ospiti": 30
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "10:00",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    5,
+    16
+   ],
+   "esce": [
+    20,
+    21
+   ]
+  },
+  {
+   "periodo": 3,
+   "tempo": "10:00",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    13
+   ],
+   "esce": [
+    25
+   ]
+  },
+  {
+   "periodo": 3,
+   "tempo": "9:43",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 16,
+   "punti": 3,
+   "punteggio": {
+    "casa": 32,
+    "ospiti": 30
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "9:22",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 5,
+   "punti": 2,
+   "punteggio": {
+    "casa": 34,
+    "ospiti": 30
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "8:02",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 33,
+   "punti": 2,
+   "punteggio": {
+    "casa": 34,
+    "ospiti": 32
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "7:33",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 2,
+   "punteggio": {
+    "casa": 34,
+    "ospiti": 34
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "6:36",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 9,
+   "punteggio": {
+    "casa": 34,
+    "ospiti": 34
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "6:26",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 16,
+   "punti": 2,
+   "punteggio": {
+    "casa": 36,
+    "ospiti": 34
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "6:00",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 1,
+   "punteggio": {
+    "casa": 36,
+    "ospiti": 34
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "6:00",
+   "tipo": "fallo_subito",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punteggio": {
+    "casa": 36,
+    "ospiti": 34
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "6:00",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 1,
+   "punteggio": {
+    "casa": 36,
+    "ospiti": 35
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "6:00",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 1,
+   "punteggio": {
+    "casa": 36,
+    "ospiti": 36
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "6:00",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    7
+   ],
+   "esce": [
+    1
+   ]
+  },
+  {
+   "periodo": 3,
+   "tempo": "5:49",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 16,
+   "punti": 2,
+   "punteggio": {
+    "casa": 38,
+    "ospiti": 36
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "5:40",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 18,
+   "punti": 2,
+   "punteggio": {
+    "casa": 38,
+    "ospiti": 38
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "5:24",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 33,
+   "punteggio": {
+    "casa": 38,
+    "ospiti": 38
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "4:51",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 7,
+   "punti": 2,
+   "punteggio": {
+    "casa": 40,
+    "ospiti": 38
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "4:23",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 7,
+   "punti": 3,
+   "punteggio": {
+    "casa": 43,
+    "ospiti": 38
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "4:00",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 3,
+   "punteggio": {
+    "casa": 43,
+    "ospiti": 41
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "3:47",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 22,
+   "punteggio": {
+    "casa": 43,
+    "ospiti": 41
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "3:47",
+   "tipo": "fallo_subito",
+   "squadra": "casa",
+   "numero": 12,
+   "punteggio": {
+    "casa": 43,
+    "ospiti": 41
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "3:47",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    6
+   ],
+   "esce": [
+    5
+   ]
+  },
+  {
+   "periodo": 3,
+   "tempo": "3:47",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    21
+   ],
+   "esce": [
+    18
+   ]
+  },
+  {
+   "periodo": 3,
+   "tempo": "3:47",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 12,
+   "punti": 1,
+   "punteggio": {
+    "casa": 44,
+    "ospiti": 41
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "3:47",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 12,
+   "punti": 1,
+   "punteggio": {
+    "casa": 45,
+    "ospiti": 41
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "3:27",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 3,
+   "punteggio": {
+    "casa": 45,
+    "ospiti": 44
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "3:14",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    19
+   ],
+   "esce": [
+    16
+   ]
+  },
+  {
+   "periodo": 3,
+   "tempo": "3:14",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    25
+   ],
+   "esce": [
+    33
+   ]
+  },
+  {
+   "periodo": 3,
+   "tempo": "3:05",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 12,
+   "punti": 2,
+   "punteggio": {
+    "casa": 47,
+    "ospiti": 44
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "3:02",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    3
+   ],
+   "esce": [
+    9
+   ]
+  },
+  {
+   "periodo": 3,
+   "tempo": "2:30",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    21
+   ],
+   "esce": [
+    12
+   ]
+  },
+  {
+   "periodo": 3,
+   "tempo": "2:19",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 6,
+   "punteggio": {
+    "casa": 47,
+    "ospiti": 44
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "2:19",
+   "tipo": "fallo_subito",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punteggio": {
+    "casa": 47,
+    "ospiti": 44
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "2:19",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    0
+   ],
+   "esce": [
+    22
+   ]
+  },
+  {
+   "periodo": 3,
+   "tempo": "2:19",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 1,
+   "punteggio": {
+    "casa": 47,
+    "ospiti": 45
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "2:19",
+   "tipo": "libero_sbagliato",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punteggio": {
+    "casa": 47,
+    "ospiti": 45
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "1:44",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 21,
+   "punti": 2,
+   "punteggio": {
+    "casa": 47,
+    "ospiti": 47
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "1:44",
+   "tipo": "timeout",
+   "squadra": "casa",
+   "punteggio": {
+    "casa": 47,
+    "ospiti": 47
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "1:14",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 0,
+   "punti": 3,
+   "punteggio": {
+    "casa": 47,
+    "ospiti": 50
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "0:48",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 6,
+   "punti": 3,
+   "punteggio": {
+    "casa": 50,
+    "ospiti": 50
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "0:15",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 19,
+   "punteggio": {
+    "casa": 50,
+    "ospiti": 50
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "0:15",
+   "tipo": "fallo_subito",
+   "squadra": "ospiti",
+   "numero": 25,
+   "punteggio": {
+    "casa": 50,
+    "ospiti": 50
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "0:15",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    20
+   ],
+   "esce": [
+    19
+   ]
+  },
+  {
+   "periodo": 3,
+   "tempo": "0:15",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 25,
+   "punti": 1,
+   "punteggio": {
+    "casa": 50,
+    "ospiti": 51
+   }
+  },
+  {
+   "periodo": 3,
+   "tempo": "0:15",
+   "tipo": "libero_sbagliato",
+   "squadra": "ospiti",
+   "numero": 25,
+   "punteggio": {
+    "casa": 50,
+    "ospiti": 51
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "9:58",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 3,
+   "punteggio": {
+    "casa": 50,
+    "ospiti": 51
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "9:58",
+   "tipo": "fallo_subito",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punteggio": {
+    "casa": 50,
+    "ospiti": 51
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "9:58",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 1,
+   "punteggio": {
+    "casa": 50,
+    "ospiti": 52
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "9:58",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 1,
+   "punteggio": {
+    "casa": 50,
+    "ospiti": 53
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "9:44",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 21,
+   "punteggio": {
+    "casa": 50,
+    "ospiti": 53
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "9:44",
+   "tipo": "fallo_subito",
+   "squadra": "casa",
+   "numero": 21,
+   "punteggio": {
+    "casa": 50,
+    "ospiti": 53
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "9:44",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 21,
+   "punti": 1,
+   "punteggio": {
+    "casa": 51,
+    "ospiti": 53
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "9:44",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 21,
+   "punti": 1,
+   "punteggio": {
+    "casa": 52,
+    "ospiti": 53
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "9:44",
+   "tipo": "timeout",
+   "squadra": "ospiti",
+   "punteggio": {
+    "casa": 52,
+    "ospiti": 53
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "9:44",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    33
+   ],
+   "esce": [
+    21
+   ]
+  },
+  {
+   "periodo": 4,
+   "tempo": "9:29",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 0,
+   "punti": 3,
+   "punteggio": {
+    "casa": 52,
+    "ospiti": 56
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "8:51",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 20,
+   "punteggio": {
+    "casa": 52,
+    "ospiti": 56
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "8:51",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    1
+   ],
+   "esce": [
+    20
+   ]
+  },
+  {
+   "periodo": 4,
+   "tempo": "7:44",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 13,
+   "punti": 3,
+   "punteggio": {
+    "casa": 52,
+    "ospiti": 59
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "7:28",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 3,
+   "punti": 2,
+   "punteggio": {
+    "casa": 54,
+    "ospiti": 59
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "6:53",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 0,
+   "punteggio": {
+    "casa": 54,
+    "ospiti": 59
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "6:53",
+   "tipo": "fallo_subito",
+   "squadra": "casa",
+   "numero": 1,
+   "punteggio": {
+    "casa": 54,
+    "ospiti": 59
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "6:53",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    9,
+    16
+   ],
+   "esce": [
+    3,
+    6
+   ]
+  },
+  {
+   "periodo": 4,
+   "tempo": "6:53",
+   "tipo": "libero_sbagliato",
+   "squadra": "casa",
+   "numero": 1,
+   "punteggio": {
+    "casa": 54,
+    "ospiti": 59
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "6:53",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 1,
+   "punti": 1,
+   "punteggio": {
+    "casa": 55,
+    "ospiti": 59
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "6:27",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 13,
+   "punteggio": {
+    "casa": 55,
+    "ospiti": 59
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "6:27",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    8
+   ],
+   "esce": [
+    5
+   ]
+  },
+  {
+   "periodo": 4,
+   "tempo": "6:14",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 16,
+   "punti": 2,
+   "punteggio": {
+    "casa": 57,
+    "ospiti": 59
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "5:53",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 21,
+   "punteggio": {
+    "casa": 57,
+    "ospiti": 59
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "5:53",
+   "tipo": "fallo_subito",
+   "squadra": "ospiti",
+   "numero": 25,
+   "punteggio": {
+    "casa": 57,
+    "ospiti": 59
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "5:53",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    5
+   ],
+   "esce": [
+    21
+   ]
+  },
+  {
+   "periodo": 4,
+   "tempo": "5:53",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 25,
+   "punti": 1,
+   "punteggio": {
+    "casa": 57,
+    "ospiti": 60
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "5:53",
+   "tipo": "libero_sbagliato",
+   "squadra": "ospiti",
+   "numero": 25,
+   "punteggio": {
+    "casa": 57,
+    "ospiti": 60
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "5:37",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    22
+   ],
+   "esce": [
+    0
+   ]
+  },
+  {
+   "periodo": 4,
+   "tempo": "5:24",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 1,
+   "punteggio": {
+    "casa": 57,
+    "ospiti": 60
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "5:13",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 33,
+   "punteggio": {
+    "casa": 57,
+    "ospiti": 60
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "4:57",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 7,
+   "punti": 2,
+   "punteggio": {
+    "casa": 59,
+    "ospiti": 60
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "4:29",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 22,
+   "punti": 2,
+   "punteggio": {
+    "casa": 59,
+    "ospiti": 62
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "4:07",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 1,
+   "punteggio": {
+    "casa": 59,
+    "ospiti": 62
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "4:07",
+   "tipo": "fallo_subito",
+   "squadra": "ospiti",
+   "numero": 33,
+   "punteggio": {
+    "casa": 59,
+    "ospiti": 62
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "4:07",
+   "tipo": "libero_sbagliato",
+   "squadra": "ospiti",
+   "numero": 33,
+   "punteggio": {
+    "casa": 59,
+    "ospiti": 62
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "4:07",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 33,
+   "punti": 1,
+   "punteggio": {
+    "casa": 59,
+    "ospiti": 63
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "3:50",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 3,
+   "punteggio": {
+    "casa": 59,
+    "ospiti": 63
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "3:50",
+   "tipo": "timeout",
+   "squadra": "casa",
+   "punteggio": {
+    "casa": 59,
+    "ospiti": 63
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "3:50",
+   "tipo": "cambio",
+   "squadra": "casa",
+   "entra": [
+    6,
+    21
+   ],
+   "esce": [
+    3,
+    5
+   ],
+   "avviso": "esce [3] che non risulta in campo; dopo il cambio in campo risultano 6: [1, 6, 7, 9, 16, 21]"
+  },
+  {
+   "periodo": 4,
+   "tempo": "3:50",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 33,
+   "punti": 1,
+   "punteggio": {
+    "casa": 59,
+    "ospiti": 64
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "3:50",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 33,
+   "punti": 1,
+   "punteggio": {
+    "casa": 59,
+    "ospiti": 65
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "2:58",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 33,
+   "punteggio": {
+    "casa": 59,
+    "ospiti": 65
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "2:58",
+   "tipo": "fallo_subito",
+   "squadra": "casa",
+   "numero": 7,
+   "punteggio": {
+    "casa": 59,
+    "ospiti": 65
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "2:58",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    5
+   ],
+   "esce": [
+    13
+   ]
+  },
+  {
+   "periodo": 4,
+   "tempo": "2:58",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 7,
+   "punti": 1,
+   "punteggio": {
+    "casa": 60,
+    "ospiti": 65
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "2:58",
+   "tipo": "canestro",
+   "squadra": "casa",
+   "numero": 7,
+   "punti": 1,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 65
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "1:41",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 6,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 65
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "1:41",
+   "tipo": "cambio",
+   "squadra": "ospiti",
+   "entra": [
+    13
+   ],
+   "esce": [
+    8
+   ]
+  },
+  {
+   "periodo": 4,
+   "tempo": "1:08",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 25,
+   "punti": 2,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 67
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:53",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 7,
+   "tecnico": true,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 67
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:53",
+   "tipo": "libero_sbagliato",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 67
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:49",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 7,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 67
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:49",
+   "tipo": "fallo_subito",
+   "squadra": "ospiti",
+   "numero": 13,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 67
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:49",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 13,
+   "punti": 1,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 68
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:49",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 13,
+   "punti": 1,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 69
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:49",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 13,
+   "punti": 1,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 70
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:34",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 22,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 70
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:34",
+   "tipo": "fallo_subito",
+   "squadra": "casa",
+   "numero": 7,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 70
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:34",
+   "tipo": "libero_sbagliato",
+   "squadra": "casa",
+   "numero": 7,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 70
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:34",
+   "tipo": "libero_sbagliato",
+   "squadra": "casa",
+   "numero": 7,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 70
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:29",
+   "tipo": "fallo",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 70
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:29",
+   "tipo": "fallo_subito",
+   "squadra": "casa",
+   "numero": 21,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 70
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:29",
+   "tipo": "libero_sbagliato",
+   "squadra": "casa",
+   "numero": 21,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 70
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:29",
+   "tipo": "libero_sbagliato",
+   "squadra": "casa",
+   "numero": 21,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 70
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:21",
+   "tipo": "fallo",
+   "squadra": "casa",
+   "numero": 9,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 70
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:21",
+   "tipo": "fallo_subito",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 70
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:21",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 1,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 71
+   }
+  },
+  {
+   "periodo": 4,
+   "tempo": "0:21",
+   "tipo": "canestro",
+   "squadra": "ospiti",
+   "numero": 5,
+   "punti": 1,
+   "punteggio": {
+    "casa": 61,
+    "ospiti": 72
+   }
+  }
+ ],
+ "controllo": {
+  "punti": {
+   "casa": 61,
+   "ospiti": 72
+  },
+  "tiri_liberi_segnati": {
+   "casa": 12,
+   "ospiti": 24
+  },
+  "tiri_liberi_sbagliati": {
+   "casa": 8,
+   "ospiti": 9
+  },
+  "canestri_da_2": {
+   "casa": 17,
+   "ospiti": 12
+  },
+  "triple": {
+   "casa": 5,
+   "ospiti": 8
+  },
+  "falli": {
+   "casa": 25,
+   "ospiti": 16
+  },
+  "falli_subiti": {
+   "casa": 10,
+   "ospiti": 14
+  },
+  "cambi": {
+   "casa": 22,
+   "ospiti": 22
+  },
+  "timeout": {
+   "casa": 3,
+   "ospiti": 2
+  }
+ },
+ "avvisi": [
+  "Q4 3:50 casa: esce [3] che non risulta in campo; dopo il cambio in campo risultano 6: [1, 6, 7, 9, 16, 21]"
+ ]
+}
