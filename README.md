@@ -201,7 +201,8 @@ Una pagina sola, senza installare nulla; la connessione serve solo per i comandi
   fatti e subiti, timeout, quintetti e cambi, con squadra, numero e nome del giocatore, punteggio dopo l'azione e la
   `scritta` pronta per la sovrimpressione («Canestro da 2 · #25 Rossi», «Fallo · #7 Bianchi (3°)»,
   «Entra #14 Gialli · esce #7 Bianchi»). Le azioni corrette con «Correggi» non ci sono. Quelle importate dal
-  play-by-play di FIPSTATS hanno in più `"fonte": "fipstats"`; quelle dello scout non hanno `fonte`;
+  play-by-play di FIPSTATS hanno in più `"fonte": "fipstats"`; quelle dello scout non hanno `fonte`. Il fallo
+  tecnico ha in più `"tecnico": true` e la scritta «Fallo tecnico · #7 Andreoli (2°)», e conta come gli altri falli;
 - `fine_periodi`: per ogni periodo finito, il punteggio e il tabellino completo fino a quel momento;
 - `tabellino`: il tabellino completo al momento in cui si scarica il file, con minuti, più/meno e valutazione;
 - `non_registrati`: i comandi a voce non capiti, con la frase sentita e il motivo;
@@ -357,7 +358,7 @@ L'esempio vero, Valdobasket – PC52 61-72 del 7 novembre 2026, è nel file
 | --- | --- |
 | `canestro` con `punti` 1, 2 o 3 | canestro (`score`): tiro libero, da 2, tripla |
 | `libero_sbagliato` | tiro libero sbagliato (`stat` `miss` da 1) |
-| `fallo` | fallo (`foul`); con `"tecnico": true` in cronaca è «fallo tecnico» e conta come un fallo normale, personale e di squadra |
+| `fallo` | fallo (`foul`); con `"tecnico": true` in cronaca è «fallo tecnico», nel File della partita ha `"tecnico": true` e la scritta «Fallo tecnico ·…», e conta come un fallo normale, personale e di squadra |
 | `fallo_subito` | fallo subito (`stat` `fd`) |
 | `timeout` | timeout |
 | `quintetto` con `in_campo` | quintetto (`lineup`) |

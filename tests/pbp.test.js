@@ -317,6 +317,15 @@ test('il File della partita ha tutte le azioni, le importate con "fonte": "fipst
   // nient'altro cambia nelle azioni importate: gli stessi campi di quelle segnate a mano
   const basket = file.azioni.find((a) => a.tipo === 'canestro');
   assert.deepEqual(Object.keys(basket), ['periodo', 'numero_periodo', 'tempo', 'ms_restanti', 'tipo', 'squadra', 'nome_squadra', 'fonte', 'numero', 'giocatore', 'punti', 'punteggio', 'scritta']);
+  // il fallo tecnico: "tecnico": true e la scritta «Fallo tecnico»; gli altri falli restano come prima
+  const technical = file.azioni.filter((a) => a.tecnico !== undefined);
+  assert.equal(technical.length, 1);
+  assert.equal(technical[0].tecnico, true);
+  assert.equal(technical[0].tempo, '53.0');
+  assert.equal(technical[0].scritta, 'Fallo tecnico · #7 Andreoli Gabriele (2°)');
+  assert.equal(technical[0].tipo, 'fallo');
+  const plain = file.azioni.find((a) => a.tipo === 'fallo' && !a.tecnico);
+  assert.match(plain.scritta, /^Fallo · #\d+ /);
   assert.equal(file.fine_periodi.length, 4);
   assert.deepEqual(file.fine_periodi[3].punteggio, { casa: 61, ospiti: 72 });
   assert.equal(file.tabellino.ospiti.totale.t3_tentati, 9);

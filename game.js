@@ -926,7 +926,10 @@
     if (e.type === 'timeout') return `Timeout ${state.names[e.team]}`;
     if (e.type === 'lineup') return `In campo ${state.names[e.team]}: ${e.on.map(label).join(', ')}`;
     if (e.type === 'sub') return `Entra ${e.in.map(label).join(', ')} · esce ${e.out.map(label).join(', ')}`;
-    if (e.type === 'foul') return playerFoulCount ? `Fallo · ${who} (${playerFoulCount}°)` : `Fallo · ${who}`;
+    if (e.type === 'foul') {
+      const foul = e.technical ? 'Fallo tecnico' : 'Fallo';
+      return playerFoulCount ? `${foul} · ${who} (${playerFoulCount}°)` : `${foul} · ${who}`;
+    }
     if (e.type === 'stat') return `${statName(e)} · ${who}`;
     return e.pts > 0 ? `${SHOT_NAMES[e.pts]} · ${who}` : `Correzione ${e.pts} · ${who}`;
   }
@@ -979,6 +982,7 @@
           fouls[key] = (fouls[key] ?? 0) + 1;
           action.falli_giocatore = fouls[key];
         }
+        if (e.type === 'foul' && e.technical) action.tecnico = true; // conta come un fallo normale
         if (e.type === 'lineup') action.in_campo = players(e.team, e.on);
         if (e.type === 'sub') {
           action.entrano = players(e.team, e.in);
