@@ -58,6 +58,7 @@
       notes: [], // i comandi a voce non registrati, perché restino nella cronaca
       video: null, // il video della partita aperto nel tabellone: { name, positionMs }
       youtube: null, // il codice del video della diretta su YouTube: ogni partita ha la sua diretta
+      pbp: null, // il play-by-play di FIPSTATS importato: fonte, video e avvisi del referto
     };
   }
 
@@ -269,9 +270,15 @@
   }
 
   // Annulla l'ultima azione; se veniva da un comando a voce con più azioni (stesso group), le toglie tutte.
+  // Le azioni importate dal play-by-play non si annullano: si correggono reimportando il file.
+  function canUndo(state) {
+    const last = state.events[state.events.length - 1];
+    return Boolean(last) && !isImported(last);
+  }
+
   function undo(state) {
     const last = state.events[state.events.length - 1];
-    if (!last) return;
+    if (!canUndo(state)) return;
     do undoOne(state);
     while (last.group !== undefined && state.events[state.events.length - 1]?.group === last.group);
   }
@@ -540,9 +547,14 @@
     return { period: state.period, clockMs: remainingMs(state.clock, now) };
   }
 
-  // Fin dove è arrivata la partita: il tabellone, o l'azione più avanti se ce n'è una oltre.
+  // Fin dove è arrivata la partita: il tabellone, o l'azione più avanti se ce n'è una oltre. Con il play-by-play
+  // importato la partita è finita: arriva almeno alla fine dell'ultimo periodo del file (0:00), anche se l'ultima
+  // azione è prima, così i minuti in campo e la fine dei periodi sono quelli veri.
   function gameEnd(state, now) {
-    return state.events.reduce((latest, e) => (byGameTime(e, latest) > 0 ? e : latest), boardTime(state, now));
+    const lastImported = state.events.reduce((max, e) => (isImported(e) ? Math.max(max, e.period) : max), 0);
+    const board = boardTime(state, now);
+    const start = lastImported && byGameTime({ period: lastImported, clockMs: 0 }, board) > 0 ? { period: lastImported, clockMs: 0 } : board;
+    return state.events.reduce((latest, e) => (byGameTime(e, latest) > 0 ? e : latest), start);
   }
 
   // I millisecondi in campo di ogni giocatore, dal primo quintetto fino a end; null se il quintetto non c'è.
@@ -743,6 +755,10 @@
   // «Fine Q2» a tempo scaduto negli altri casi, altrimenti periodo e tempo («Q3 4:12»).
   function gameStatus(state, now) {
     const tied = score(state.events, 'home') === score(state.events, 'away');
+    if (hasImported(state)) {
+      const end = gameEnd(state, now); // con il play-by-play la partita è già finita
+      return statusText(end.period, end.clockMs, tied);
+    }
     return statusText(state.period, remainingMs(state.clock, now), tied);
   }
 
@@ -945,6 +961,7 @@
         if (e.type === 'stat') type = STAT_TYPES[e.kind];
         const action = { ...gameTime(e), tipo: type, squadra: SIDES[e.team], nome_squadra: state.names[e.team] };
         if (e.videoMs !== undefined) action.secondi_video = Math.round(e.videoMs / 100) / 10;
+        if (isImported(e)) action.fonte = PBP_ORIGIN; // dal play-by-play di FIPSTATS, non dallo scout
         if (e.player !== undefined) {
           action.numero = e.player;
           action.giocatore = state.playerNames[e.team][e.player] ?? '';
@@ -1160,6 +1177,312 @@
     state.match = { ...sheet.match };
     state.settings.playerMode = true;
     return { library: mergeLibrary(library, [sheet.teams.home, sheet.teams.away]), friendly };
+  }
+
+  // ——— Il play-by-play di FIPSTATS (formato tabellone-basket-pbp) ———
+  // Lo prepara Claude sul Mac dal play-by-play del referto elettronico, già controllato: canestri, tiri liberi
+  // segnati e sbagliati, falli, falli subiti, timeout, quintetti e cambi. Le azioni importate hanno origin
+  // 'fipstats': non si annullano e non si segnano a voce, si correggono reimportando il file.
+
+  const PBP_FORMAT = 'tabellone-basket-pbp';
+  const PBP_ORIGIN = 'fipstats';
+  const TEAM_OF = { casa: 'home', ospiti: 'away' };
+  const PBP_TYPES = ['canestro', 'libero_sbagliato', 'fallo', 'fallo_subito', 'timeout', 'quintetto', 'cambio'];
+  // i totali del «controllo» che il tabellone sa ricontare, con la regola per contarli
+  const PBP_TOTALS = {
+    punti: (e) => (e.type === 'score' ? e.pts : 0),
+    tiri_liberi_segnati: (e) => (e.type === 'score' && e.pts === 1 ? 1 : 0),
+    tiri_liberi_sbagliati: (e) => (e.type === 'stat' && e.kind === 'miss' && e.pts === 1 ? 1 : 0),
+    canestri_da_2: (e) => (e.type === 'score' && e.pts === 2 ? 1 : 0),
+    triple: (e) => (e.type === 'score' && e.pts === 3 ? 1 : 0),
+    falli: (e) => (e.type === 'foul' ? 1 : 0),
+    falli_subiti: (e) => (e.type === 'stat' && e.kind === 'fd' ? 1 : 0),
+    cambi: (e) => (e.type === 'sub' ? 1 : 0),
+    timeout: (e) => (e.type === 'timeout' ? 1 : 0),
+  };
+
+  function isImported(e) {
+    return e.origin === PBP_ORIGIN;
+  }
+
+  // La partita ha il play-by-play: lo scout a voce è in «modalità completamento».
+  function hasImported(state) {
+    return state.events.some(isImported);
+  }
+
+  // Le azioni che arrivano dal play-by-play: segnate anche a mano si conterebbero due volte.
+  // Il quintetto no: detto a mano è sempre permesso, e vince su quello importato da lì in avanti.
+  function fromSheet(e) {
+    return (
+      ['score', 'foul', 'timeout', 'sub'].includes(e.type) ||
+      (e.type === 'stat' && (e.kind === 'fd' || (e.kind === 'miss' && e.pts === 1)))
+    );
+  }
+
+  // Detto a voce: canestri (anche i tiri liberi), falli, falli subiti e tiri liberi sbagliati sono nel referto.
+  function sheetHead(h) {
+    return h.kind === 'score' || h.kind === 'foul' || h.kind === 'fd' || (h.kind === 'miss' && h.value === 1);
+  }
+
+  function sheetHeadName(h) {
+    if (h.kind === 'score') return h.value === 1 ? 'tiro libero' : 'canestro';
+    if (h.kind === 'miss') return 'tiro libero sbagliato';
+    return h.kind === 'fd' ? 'fallo subito' : 'fallo';
+  }
+
+  // La risposta a voce per quello che è già nel referto: non si registra, e non finisce fra i comandi non capiti.
+  function inSheet(names) {
+    const what = [...new Set(names)].join(', ');
+    return {
+      error:
+        `Già nel referto: ${what}. In questa partita canestri, tiri liberi, falli, falli subiti, timeout e cambi ` +
+        'arrivano dal play-by-play di FIPSTATS; a voce si segnano tiri da 2 e da 3 sbagliati, rimbalzi, assist, ' +
+        'palle recuperate e perse, stoppate.',
+      inSheet: true,
+    };
+  }
+
+  // Il tempo del tabellone scritto nel file: «9:38», e nell'ultimo minuto anche «0:53» o «45.3». Null se non va.
+  function readClockText(text, period) {
+    const s = String(text ?? '').trim();
+    const full = /^(\d{1,2}):(\d{2})(?:[.,](\d))?$/.exec(s);
+    const short = /^(\d{1,2})[.,](\d)$/.exec(s);
+    if (!full && !short) return null;
+    const [min, sec, tenth] = full ? [Number(full[1]), Number(full[2]), Number(full[3] ?? 0)] : [0, Number(short[1]), Number(short[2])];
+    if (sec > 59) return null;
+    const ms = (min * 60 + sec) * 1000 + tenth * 100;
+    return ms <= periodLength(period) ? ms : null;
+  }
+
+  // Il punto della partita come lo scrive il play-by-play: «Q4 3:50 casa».
+  function pbpWhere(a) {
+    const period = Number.isInteger(a?.periodo) && a.periodo >= 1 ? periodLabel(a.periodo) : `periodo ${a?.periodo ?? '?'}`;
+    return [period, a?.tempo ?? '', a?.squadra ?? ''].filter(Boolean).join(' ');
+  }
+
+  // Un elenco di numeri di maglia della squadra (quintetto, chi entra, chi esce); null se qualcuno non va.
+  function pbpNumbers(list, roster) {
+    if (!Array.isArray(list) || list.length === 0) return null;
+    const numbers = list.map(jersey);
+    if (numbers.some((n) => n === null || !roster.includes(n)) || new Set(numbers).size !== numbers.length) return null;
+    return numbers;
+  }
+
+  // Ricontare i totali delle azioni e confrontarli con il «controllo» del file: l'elenco di quelli che non tornano.
+  function pbpTotals(events, controllo) {
+    const wrong = [];
+    for (const [key, count] of Object.entries(PBP_TOTALS)) {
+      const expected = controllo[key];
+      if (expected === undefined) continue;
+      const counted = {
+        casa: events.filter((e) => e.team === 'home').reduce((sum, e) => sum + count(e), 0),
+        ospiti: events.filter((e) => e.team === 'away').reduce((sum, e) => sum + count(e), 0),
+      };
+      if (expected?.casa !== counted.casa || expected?.ospiti !== counted.ospiti) {
+        const said = expected && typeof expected === 'object' ? `casa ${expected.casa}, ospiti ${expected.ospiti}` : String(expected);
+        wrong.push(`«${key}»: nel controllo ${said}, contando le azioni casa ${counted.casa}, ospiti ${counted.ospiti}`);
+      }
+    }
+    return wrong;
+  }
+
+  // Legge un file del play-by-play e lo controlla tutto prima di importare: dati e squadre come la scheda della
+  // partita, ogni azione con periodo, tempo, squadra e giocatori della squadra, l'ordine della partita, il
+  // punteggio scritto e alla fine i totali del «controllo». Restituisce { pbp } con dati, squadre, azioni pronte
+  // per il tabellone (nell'ordine del file), avvisi e video, oppure { error } con il motivo e il punto della partita.
+  function readPlayByPlay(json) {
+    if (json?.formato !== PBP_FORMAT) return { error: 'Questo file non è un play-by-play del tabellone.' };
+    if (json.versione !== 1) return { error: 'Il play-by-play è di una versione più nuova del tabellone: aggiorna la pagina e riprova.' };
+    const read = readMatchSheet({ ...json, formato: SHEET_FORMAT });
+    if (read.error) return read;
+    const { sheet } = read;
+    if (!Array.isArray(json.azioni) || json.azioni.length === 0) return { error: 'Nel play-by-play non ci sono azioni.' };
+    if (!json.controllo || typeof json.controllo !== 'object') {
+      return { error: 'Nel play-by-play manca il «controllo» con i totali: senza, il tabellone non può ricontarli.' };
+    }
+    const rosters = { home: sheet.teams.home.players.map((p) => p.number), away: sheet.teams.away.players.map((p) => p.number) };
+    const names = { home: sheet.teams.home.name, away: sheet.teams.away.name };
+    const events = [];
+    const running = { home: 0, away: 0 };
+    let previous = null;
+    for (const [i, a] of json.azioni.entries()) {
+      const fail = (text) => ({ error: `Play-by-play, azione ${i + 1} (${pbpWhere(a)}): ${text}` });
+      if (!a || typeof a !== 'object') return fail('non è un\'azione.');
+      if (!Number.isInteger(a.periodo) || a.periodo < 1) return fail('il periodo va scritto come numero, da 1 in su.');
+      const clockMs = readClockText(a.tempo, a.periodo);
+      if (clockMs === null) return fail(`«${a.tempo ?? ''}» non è un tempo del ${periodLabel(a.periodo)}: scrivilo come 9:38.`);
+      const team = TEAM_OF[a.squadra];
+      if (!team) return fail('la squadra va scritta «casa» o «ospiti».');
+      if (!PBP_TYPES.includes(a.tipo)) return fail(`«${a.tipo ?? ''}» non è un tipo di azione che il tabellone conosce.`);
+      const at = { period: a.periodo, clockMs };
+      if (previous && byGameTime(at, previous) < 0) {
+        return fail(`viene dopo ${periodLabel(previous.period)} ${formatClock(previous.clockMs)}: le azioni vanno nell'ordine della partita.`);
+      }
+      previous = at;
+      const event = { team };
+      if (['canestro', 'libero_sbagliato', 'fallo', 'fallo_subito'].includes(a.tipo)) {
+        if (a.numero === undefined || a.numero === null || a.numero === '') return fail('manca il numero del giocatore.');
+        const player = jersey(a.numero);
+        if (player === null || !rosters[team].includes(player)) {
+          return fail(`il numero ${a.numero} non è fra i giocatori di ${names[team]} scritti nel file.`);
+        }
+        if (a.tipo === 'canestro') {
+          if (![1, 2, 3].includes(a.punti)) return fail('i punti del canestro sono 1, 2 o 3.');
+          Object.assign(event, { type: 'score', pts: a.punti, player });
+          running[team] += a.punti;
+        } else if (a.tipo === 'libero_sbagliato') {
+          Object.assign(event, { type: 'stat', kind: 'miss', pts: 1, player });
+        } else if (a.tipo === 'fallo') {
+          Object.assign(event, { type: 'foul', player });
+        } else {
+          Object.assign(event, { type: 'stat', kind: 'fd', player });
+        }
+      } else if (a.tipo === 'timeout') {
+        event.type = 'timeout';
+      } else if (a.tipo === 'quintetto') {
+        const on = pbpNumbers(a.in_campo, rosters[team]);
+        if (!on) return fail(`in «in_campo» ci vanno numeri dei giocatori di ${names[team]} scritti nel file, ognuno una volta.`);
+        Object.assign(event, { type: 'lineup', on: on.sort(byJersey) });
+      } else {
+        const ins = pbpNumbers(a.entra, rosters[team]);
+        const outs = pbpNumbers(a.esce, rosters[team]);
+        if (!ins || !outs) return fail(`in «entra» ed «esce» ci vanno numeri dei giocatori di ${names[team]} scritti nel file.`);
+        Object.assign(event, { type: 'sub', in: ins, out: outs });
+      }
+      if (a.tecnico !== undefined) {
+        if (a.tipo !== 'fallo' || typeof a.tecnico !== 'boolean') return fail('«tecnico» va solo in un fallo, true o false.');
+        if (a.tecnico) event.technical = true;
+      }
+      if (a.punteggio !== undefined) {
+        if (a.punteggio?.casa !== running.home || a.punteggio?.ospiti !== running.away) {
+          return fail(
+            `il punteggio scritto è ${a.punteggio?.casa}-${a.punteggio?.ospiti}, ma contando i canestri fin qui è ` +
+              `${running.home}-${running.away}.`
+          );
+        }
+      }
+      if (a.secondi_video !== undefined) {
+        if (typeof a.secondi_video !== 'number' || !Number.isFinite(a.secondi_video) || a.secondi_video < 0) {
+          return fail('«secondi_video» va scritto come numero di secondi, da 0 in su.');
+        }
+        event.videoMs = Math.round(a.secondi_video * 1000);
+      }
+      if (a.avviso !== undefined) event.warning = String(a.avviso);
+      events.push({ ...event, period: a.periodo, clockMs, origin: PBP_ORIGIN });
+    }
+    const known = Object.keys(PBP_TOTALS).filter((key) => json.controllo[key] !== undefined);
+    if (known.length === 0) return { error: 'Nel «controllo» del play-by-play non c\'è nessun totale che il tabellone sappia ricontare.' };
+    const wrong = pbpTotals(events, json.controllo);
+    if (wrong.length) {
+      return { error: `I totali del play-by-play non tornano, non importo niente. ${wrong.join('; ')}.` };
+    }
+    const warnings = Array.isArray(json.avvisi) ? json.avvisi.map(String) : [];
+    const video = typeof json.video?.file === 'string' && json.video.file.trim() ? json.video.file.trim() : null;
+    return { pbp: { sheet, events, warnings, video, source: String(json.fonte ?? '') } };
+  }
+
+  // Prima di importare: cosa succede alla partita aperta. Le squadre del file devono essere quelle della partita:
+  // se sono diverse (la partita ha già giocatori con un altro nome) si chiede prima di sostituirle, ma solo se non
+  // ci sono azioni segnate a mano, che sarebbero dell'altra partita. Se a mano ci sono già canestri, falli, timeout
+  // o cambi non si importa: con il play-by-play si conterebbero due volte.
+  // Restituisce { replaced, kept, otherTeams } oppure { error }.
+  function playByPlayCheck(state, pbp) {
+    const manual = state.events.filter((e) => !isImported(e));
+    const doubled = manual.find(fromSheet);
+    if (doubled) {
+      return {
+        error:
+          `In questa partita c'è già, segnato a mano, ${describeEvent(state, doubled)} (${periodLabel(doubled.period)} ` +
+          `${formatClock(doubled.clockMs)}): con il play-by-play si conterebbe due volte. Toglilo con «Annulla», ` +
+          'o premi «Nuova partita» e importa il play-by-play prima dello scout.',
+      };
+    }
+    const otherTeams = ['home', 'away'].filter(
+      (team) =>
+        (state.rosters[team].length > 0 || manual.some((e) => e.team === team)) &&
+        !sameName(state.names[team], pbp.sheet.teams[team].name)
+    );
+    if (otherTeams.length && manual.length) {
+      return {
+        error:
+          `Le azioni segnate a mano sono di ${state.names.home} – ${state.names.away}, il play-by-play è di ` +
+          `${pbp.sheet.teams.home.name} – ${pbp.sheet.teams.away.name}: per importarlo premi prima «Nuova partita».`,
+      };
+    }
+    return { replaced: state.events.length - manual.length, kept: manual.length, otherTeams: otherTeams.length > 0 };
+  }
+
+  // Importa il play-by-play: dati e squadre come «Importa partita» (le squadre finiscono anche fra le salvate) e
+  // tutte le azioni, marcate come importate. Reimportare sostituisce solo le azioni importate prima: quelle segnate
+  // a mano restano. Le azioni importate vanno in testa, nell'ordine del file, che è quello vero della partita: a pari
+  // tempo quelle dette a mano vengono dopo, così un quintetto detto a mano vince su quello importato da lì in avanti.
+  // I cambi si caricano come sono, senza i controlli dello scout a voce: gli errori del tavolo restano negli avvisi.
+  // Restituisce { library, friendly, imported, replaced, kept, warnings } oppure { error }.
+  function importPlayByPlay(state, library, pbp) {
+    const check = playByPlayCheck(state, pbp);
+    if (check.error) return check;
+    const manual = state.events.filter((e) => !isImported(e));
+    const teams = {};
+    for (const team of ['home', 'away']) {
+      const file = pbp.sheet.teams[team];
+      const numbers = file.players.map((p) => p.number);
+      // chi ha azioni segnate a mano resta in squadra anche se nel file non c'è
+      const extra = [...new Set(manual.filter((e) => e.team === team).flatMap(eventPlayers))].filter((n) => !numbers.includes(n));
+      teams[team] = { file, extra };
+    }
+    const most = Math.max(...['home', 'away'].map((t) => teams[t].file.players.length + teams[t].extra.length));
+    if (most > MAX_PLAYERS_FRIENDLY) return { error: `Una squadra avrebbe ${most} giocatori: al massimo ${MAX_PLAYERS_FRIENDLY}.` };
+    const friendly = most > MAX_PLAYERS && !state.settings.friendly;
+    if (friendly) state.settings.friendly = true;
+    for (const team of ['home', 'away']) {
+      const { file, extra } = teams[team];
+      const kept = Object.fromEntries(extra.filter((n) => state.playerNames[team][n]).map((n) => [n, state.playerNames[team][n]]));
+      state.names[team] = file.name;
+      state.colors[team] = file.color ?? '';
+      state.rosters[team] = [...file.players.map((p) => p.number), ...extra].sort(byJersey);
+      state.playerNames[team] = { ...kept, ...Object.fromEntries(file.players.filter((p) => p.name).map((p) => [p.number, p.name])) };
+      state.origins[team] = file.name;
+    }
+    if (pbp.sheet.date) state.date = pbp.sheet.date;
+    state.match = { ...pbp.sheet.match };
+    state.settings.playerMode = true;
+    const shift = pbp.events.length - check.replaced;
+    state.events = [...pbp.events.map((e) => ({ ...e })), ...manual];
+    state.notes = (state.notes ?? []).map((n) => ({ ...n, after: Math.max(0, n.after + shift) }));
+    state.pbp = { source: pbp.source, video: pbp.video, warnings: [...pbp.warnings], count: pbp.events.length };
+    return {
+      library: mergeLibrary(library, [pbp.sheet.teams.home, pbp.sheet.teams.away]),
+      friendly,
+      imported: pbp.events.length,
+      replaced: check.replaced,
+      kept: check.kept,
+      warnings: [...pbp.warnings],
+    };
+  }
+
+  // Gli avvisi del referto, ciascuno con il punto della partita («Q4 3:50 casa: …») e chi risulta in campo lì
+  // adesso, compreso un quintetto detto a mano per correggere: con 5 giocatori l'avviso è sistemato.
+  function pbpWarnings(state) {
+    return (state.pbp?.warnings ?? []).map((text) => {
+      const m = /^(Q|TS)(\d+)\s+(\d{1,2}:\d{2}(?:[.,]\d)?|\d{1,2}[.,]\d)\s*(casa|ospiti)?/.exec(text);
+      if (!m) return { text };
+      const period = m[1] === 'Q' ? Number(m[2]) : 4 + Number(m[2]);
+      const clockMs = readClockText(m[3], period);
+      if (clockMs === null) return { text };
+      const at = { period, clockMs };
+      const team = TEAM_OF[m[4]];
+      if (!team) return { text, at };
+      const court = courtAt(state.events, team, at);
+      return { text, at, team, court: court ? [...court].sort(byJersey) : null };
+    });
+  }
+
+  // Porta periodo e cronometro al momento di un'azione (o di un avviso): così il cronometro dello scout manuale
+  // si riallinea al referto in un clic. Se il cronometro andava, continua da lì; i 24 secondi ripartono.
+  function alignClock(state, now, at) {
+    const running = state.clock.running && at.clockMs > 0;
+    state.period = at.period;
+    state.clock = { ...freshClock(at.period), remainingMs: at.clockMs, running, startedAt: now };
   }
 
   // I campionati delle partite dell'archivio, in ordine alfabetico.
@@ -1497,6 +1820,7 @@
 
   const SIDE_WORDS = { home: words('casa|locali', 'g'), away: words('ospiti|ospite|avversari|avversario', 'g') };
   const UNDO_WORDS = words('annulla|cancella');
+  const TIMEOUT_WORDS = words('timeout|time out|minuto di sospensione');
   const LINEUP_WORDS = words('quintett[oi]');
   const IN_WORD = /^(entra|entrano|entrato|entrati|dentro)$/;
   const OUT_WORD = /^(esce|escono|uscito|usciti|fuori)$/;
@@ -1583,25 +1907,27 @@
   }
 
   // I controlli comuni a quintetti e cambi: numeri validi, posto in squadra per i nuovi, nessuno con 5 falli in campo.
-  function checkGroup(state, team, entering, all) {
+  // Contano i falli fino a quel momento della partita (at): quelli fischiati dopo non lo tengono fuori prima.
+  function checkGroup(state, team, entering, all, at) {
     const tooBig = all.find((n) => n > 99);
     if (tooBig !== undefined) return { error: `Il ${tooBig} non è un numero di maglia.` };
     const added = entering.filter((n) => !state.rosters[team].includes(n));
     if (state.rosters[team].length + added.length > maxPlayers(state)) {
       return { error: `${state.names[team]} ha già ${maxPlayers(state)} giocatori: non posso aggiungerne.` };
     }
-    const out = entering.find((n) => playerFouls(state.events, team, n) >= PLAYER_FOUL_LIMIT);
+    const fouls = (n) => (at ? foulsBefore(state.events, team, n, at) : playerFouls(state.events, team, n));
+    const out = entering.find((n) => fouls(n) >= PLAYER_FOUL_LIMIT);
     if (out !== undefined) return { error: `${playerLabel(state, team, out)} ha già ${PLAYER_FOUL_LIMIT} falli: non può essere in campo.` };
     return { added };
   }
 
   // «quintetto 4 7 9 12 25»: i cinque in campo da quel momento.
-  function parseLineup(state, text, side) {
+  function parseLineup(state, text, side, at) {
     const numbers = [...new Set(numbersIn(text))];
     if (numbers.length !== 5) return { error: `Il quintetto è di 5 giocatori: ho sentito ${numbers.length} numeri.` };
     const where = groupTeam(state, side, numbers);
     if (where.error) return where;
-    const check = checkGroup(state, where.team, numbers, numbers);
+    const check = checkGroup(state, where.team, numbers, numbers, at);
     if (check.error) return check;
     return { type: 'lineup', team: where.team, on: numbers.sort(byJersey), added: check.added };
   }
@@ -1626,7 +1952,7 @@
     const where = side || onCourt.length !== 1 ? groupTeam(state, side, outs) : { team: onCourt[0] };
     if (where.error) return where;
     const { team } = where;
-    const check = checkGroup(state, team, ins, [...ins, ...outs]);
+    const check = checkGroup(state, team, ins, [...ins, ...outs], at);
     if (check.error) return check;
     const court = courtAt(state.events, team, at);
     if (!court) return { error: `Prima dimmi il quintetto in campo di ${state.names[team]}.` };
@@ -1734,6 +2060,15 @@
     let found = null;
     for (const e of events) {
       if (e.type === 'stat' && e.kind === 'miss' && byGameTime(e, at) <= 0 && (!found || byGameTime(e, found) >= 0)) found = e;
+    }
+    return found;
+  }
+
+  // L'ultimo canestro su azione (da 2 o da 3) fino a quel momento: l'assist è della sua squadra.
+  function lastBasket(events, at) {
+    let found = null;
+    for (const e of events) {
+      if (e.type === 'score' && e.pts >= 2 && byGameTime(e, at) <= 0 && (!found || byGameTime(e, found) >= 0)) found = e;
     }
     return found;
   }
@@ -1852,6 +2187,12 @@
       else near.count = Number(m[2]);
       valueAt.add(i);
     });
+    // con il play-by-play importato canestri, tiri liberi, falli e falli subiti sono già nel referto: non si
+    // registrano, ma aiutano lo stesso a capire la squadra delle altre azioni dette insieme
+    if (hasImported(state)) {
+      for (const h of heads) h.sheet = sheetHead(h);
+      if (heads.every((h) => h.sheet)) return inSheet(heads.map(sheetHeadName));
+    }
     const isPlayer = (i) => !valueAt.has(i) && (isNumber(tokens[i]) || isName(tokens[i]) || /^v\d$/.test(tokens[i]));
     const isTeam = (i) => /^@(home|away)$/.test(tokens[i]);
 
@@ -1924,13 +2265,19 @@
         if (!c.who.needsTeam) break;
       }
     }
-    const failed = clauses.find((c) => c.who.error);
+    // l'assist con un numero che c'è in tutte e due le squadre va alla squadra dell'ultimo canestro su azione
+    for (const c of clauses) {
+      if (!c.who.needsTeam || kindOf(c) !== 'ast') continue;
+      const basket = lastBasket(state.events, at);
+      if (basket) c.who = resolve(c, basket.team);
+    }
+    const failed = clauses.find((c) => c.who.error && !c.sheet);
     if (failed) return { error: failed.who.error, needsTeam: failed.who.needsTeam };
     // chi fa il fallo e chi lo subisce, chi stoppa e chi è stoppato, chi perde palla e chi la recupera
     // sono sempre di squadre diverse
     for (const c of clauses) {
       const pair = clauses.find((o) => o !== c && PASSIVE[c.kind] === o.kind);
-      if (pair && pair.who.team === c.who.team && (c.kind === 'foul' || c.kind === 'blk' || c.kind === 'tov')) {
+      if (pair && !pair.who.error && !c.who.error && pair.who.team === c.who.team && (c.kind === 'foul' || c.kind === 'blk' || c.kind === 'tov')) {
         return { error: 'Le due parti della stessa azione sono della stessa squadra: controlla numeri e colori.' };
       }
     }
@@ -1938,6 +2285,7 @@
     // 5. le azioni pronte, con i controlli: rimbalzo in attacco o in difesa, nessuno con 5 falli
     const items = [];
     for (const c of clauses) {
+      if (c.sheet) continue;
       const { team, player, newPlayer } = c.who;
       let kind = kindOf(c);
       if (kind === 'reb') {
@@ -1955,7 +2303,8 @@
         items.push({ type: 'stat', kind: 'miss', ...base, pts: c.value ?? 2, count: c.count ?? 1, ...(kind === 'blka' ? { blocked: true } : {}) });
       } else items.push({ type: 'stat', kind, ...base, count: 1 });
     }
-    return { type: 'actions', items };
+    const skipped = clauses.filter((c) => c.sheet).map(sheetHeadName);
+    return { type: 'actions', items, ...(skipped.length ? { skipped } : {}) };
   }
 
   // Una frase detta diventa un comando già controllato, con il suo tempo del tabellone (at),
@@ -1964,6 +2313,7 @@
     let text = ` ${speechWords(clockWords(heard))} `;
     if (!text.trim()) return { error: 'Non ho sentito niente.' };
     if (UNDO_WORDS.test(text)) return { type: 'undo' };
+    if (hasImported(state) && TIMEOUT_WORDS.test(text)) return inSheet(['timeout']);
     text = markTeams(state, text);
     const lineup = LINEUP_WORDS.test(text);
     const sub = !lineup && SUB_WORDS.test(text);
@@ -1982,7 +2332,8 @@
       if (sides.size > 1) return { error: 'Ho sentito tutte e due le squadre: una per comando.' };
       const plain = ` ${words.filter((w) => !w.startsWith('@')).join(' ')} `;
       const side = [...sides][0];
-      cmd = lineup ? parseLineup(state, plain, side) : parseSub(state, plain, side, time.at);
+      if (sub && hasImported(state)) return inSheet(['cambio']);
+      cmd = lineup ? parseLineup(state, plain, side, time.at) : parseSub(state, plain, side, time.at);
     } else {
       cmd = parseActions(state, text, time.at);
     }
@@ -1996,7 +2347,8 @@
     if (unknown && !cmd.error?.startsWith('Non ho capito cosa')) {
       return { error: `«${unknown}» non è il colore di nessuna squadra: scrivilo in Impostazioni, in «Colore maglia».` };
     }
-    return cmd.error ? { error: cmd.error } : { ...cmd, at: time.at };
+    if (cmd.error) return cmd.inSheet ? { error: cmd.error, inSheet: true } : { error: cmd.error };
+    return { ...cmd, at: time.at };
   }
 
   const COLOR_FILLER = ['maglia', 'maglie', 'divisa', 'con', 'colore'];
@@ -2069,7 +2421,7 @@
   function describeEvent(state, e) {
     const who = e.player === undefined ? state.names[e.team] : `${playerLabel(state, e.team, e.player)} ${state.names[e.team]}`;
     if (e.type === 'score') return `${e.pts > 0 ? '+' : '−'}${Math.abs(e.pts)} ${who}`;
-    if (e.type === 'foul') return `${foulValue(e) < 0 ? 'fallo tolto' : 'fallo'} ${who}`;
+    if (e.type === 'foul') return `${foulValue(e) < 0 ? 'fallo tolto' : e.technical ? 'fallo tecnico' : 'fallo'} ${who}`;
     if (e.type === 'stat') return `${statName(e).toLowerCase()} ${who}`;
     if (e.type === 'lineup') return `quintetto ${state.names[e.team]}`;
     if (e.type === 'sub') return `cambio ${state.names[e.team]}`;
@@ -2095,6 +2447,7 @@
     if (cmd.type === 'undo') {
       const last = state.events[state.events.length - 1];
       if (!last) return 'Niente da annullare.';
+      if (!canUndo(state)) return 'Niente da annullare: le azioni del play-by-play si correggono reimportando il file.';
       const same = last.group === undefined ? [last] : state.events.filter((e) => e.group === last.group);
       const what = same.map((e) => describeEvent(state, e)).join(' + ');
       undo(state);
@@ -2147,6 +2500,7 @@
         return `${item.count > 1 ? `${item.count} × ` : ''}${name} · ${who}${news}`;
       });
       message = `${parts.join(' + ')} · ${score(state.events, 'home')}–${score(state.events, 'away')}`;
+      if (cmd.skipped) message += ` · già nel referto: ${cmd.skipped.join(', ')}`;
     }
     followVoice(state, now, at);
     return `${message} · ${when}`;
@@ -2161,9 +2515,10 @@
     for (const heard of alternatives) {
       const cmd = parseCommand(state, heard, now);
       if (!cmd.error) return { ok: true, heard, message: applyCommand(state, now, cmd, stamp) };
-      failed ??= { ok: false, heard, message: cmd.error };
+      failed ??= { ok: false, heard, message: cmd.error, ...(cmd.inSheet ? { inSheet: true } : {}) };
     }
     if (!failed) return { ok: false, heard: '', message: 'Non ho sentito niente.' };
+    if (failed.inSheet) return failed; // è già nel referto: non c'è niente da ricordare
     const time = takeTime(state, markTeams(state, ` ${speechWords(clockWords(failed.heard))} `), now, true);
     const at = time.error ? boardTime(state, now) : time.at;
     state.notes.push({
@@ -2272,6 +2627,14 @@
     setMatchField,
     readMatchSheet,
     importMatch,
+    canUndo,
+    isImported,
+    hasImported,
+    readPlayByPlay,
+    playByPlayCheck,
+    importPlayByPlay,
+    pbpWarnings,
+    alignClock,
     archiveLeagues,
     leagueGames,
     liveData,
